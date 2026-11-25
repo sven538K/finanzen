@@ -1,0 +1,7 @@
+# Niemals ins öffentliche Repo:
+data.json
+startdaten.json
+*.zip
+vapid*.json
+.env
+.private-words
