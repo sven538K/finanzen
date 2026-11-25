@@ -1,0 +1,34 @@
+name: Benachrichtigungen
+on:
+  push:
+    paths: ['data.json']
+jobs:
+  senden:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - run: npm install web-push@3 --no-save --silent
+      - name: Push an die andere Person
+        env:
+          VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}
+        run: |
+          git show HEAD~1:data.json > old.json 2>/dev/null || echo '{}' > old.json
+          node <<'JS'
+          const wp=require('web-push'),fs=require('fs');
+          const cur=JSON.parse(fs.readFileSync('data.json','utf8'));let old={};try{old=JSON.parse(fs.readFileSync('old.json','utf8'))}catch(e){}
+          wp.setVapidDetails('https://sven538k.github.io/finanzen/','BF92sPOMUkh7IMZ0Ecpq43OeBGYEC860P7MOFO9q8eJB1jklNmRqtSkiWFLy1lS6Qw1sp7NqywyLLthMWQaKYrs',process.env.VAPID_PRIVATE);
+          const seen=new Set([...(old.expenses||[]),...(old.incomes||[])].map(x=>x.id));
+          const eur=n=>new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'}).format(n);
+          const neu=[...(cur.expenses||[]).map(x=>({...x,t:'out'})),...(cur.incomes||[]).map(x=>({...x,t:'in'}))].filter(x=>!x.deleted&&!seen.has(x.id));
+          if(!neu.length){console.log('Nichts Neues');process.exit(0)}
+          const subs=(cur.subs||[]).filter(s=>!s.deleted&&s.on&&s.sub);
+          const by={};for(const x of neu){const w=x.who||'Jemand';(by[w]=by[w]||[]).push(x)}
+          (async()=>{for(const[who,list]of Object.entries(by)){
+            const line=x=>(x.t==='in'?'+ ':'− ')+eur(x.amount)+' · '+(x.t==='in'?x.source:x.cat)+(x.note?' ('+x.note+')':'');
+            const title=list.length===1?(list[0].t==='in'?'💶 ':'🐼 ')+who+(list[0].t==='in'?' hat eine Einnahme eingetragen':' hat was ausgegeben'):'🐼 '+who+' hat '+list.length+' Buchungen eingetragen';
+            const body=list.map(line).join('\n');
+            for(const s of subs){if(s.who===who)continue;try{await wp.sendNotification(s.sub,JSON.stringify({title,body,tag:'buchung-'+Date.now()}),{TTL:86400});console.log('gesendet an',s.who)}catch(e){console.log('Fehler bei',s.who,e.statusCode)}}
+          }})();
+          JS
