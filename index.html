@@ -181,10 +181,10 @@ const IN_SRC_FIXED=[['💶','Gehalt'],['🧾','Spesen'],['🎁','Bonus / Extra']
 function arr(a){return Array.isArray(a)?a:[]}
 function normalize(d){d=d&&typeof d==='object'?d:{};const s=d.settings||{};
   return{version:1,settings:{income:+s.income||0,savingsGoal:+s.savingsGoal||0,people:Array.isArray(s.people)?s.people:[],extraMembers:Array.isArray(s.extraMembers)?s.extraMembers:[],cats:Array.isArray(s.cats)&&s.cats.length?s.cats:DEFAULT_CATS,updatedAt:s.updatedAt||''},
-  recurring:arr(d.recurring),expenses:arr(d.expenses),incomes:arr(d.incomes),debts:arr(d.debts),subs:arr(d.subs)}}
+  recurring:arr(d.recurring),expenses:arr(d.expenses),incomes:arr(d.incomes),debts:arr(d.debts),subs:arr(d.subs),carries:arr(d.carries)}}
 function mergeList(a,b){const m=new Map();for(const x of [...arr(a),...arr(b)]){if(!x||!x.id)continue;const y=m.get(x.id);if(!y||(x.updatedAt||'')>(y.updatedAt||''))m.set(x.id,x)}return[...m.values()].sort((x,y)=>x.id<y.id?-1:1)}
 function merge(l,r){return{version:1,settings:(l.settings.updatedAt||'')>=(r.settings.updatedAt||'')?l.settings:r.settings,
-  recurring:mergeList(l.recurring,r.recurring),expenses:mergeList(l.expenses,r.expenses),incomes:mergeList(l.incomes,r.incomes),debts:mergeList(l.debts,r.debts),subs:mergeList(l.subs,r.subs)}}
+  recurring:mergeList(l.recurring,r.recurring),expenses:mergeList(l.expenses,r.expenses),incomes:mergeList(l.incomes,r.incomes),debts:mergeList(l.debts,r.debts),subs:mergeList(l.subs,r.subs),carries:mergeList(l.carries,r.carries)}}
 
 let data=normalize(ls('fin.data'));
 let cfg=Object.assign({owner:'',repo:'',path:'data.json',token:'',me:''},ls('fin.cfg')||{});
@@ -193,7 +193,7 @@ const people=()=>data.settings.people||[];
 const members=()=>[...new Set([...people(),...(data.settings.extraMembers||[])])];
 const forLbl=r=>r.forWhom&&r.forWhom!=='Alle'?r.forWhom:'Alle';
 let fixSort=ls('fin.fixSort')||'due',fixGroup=ls('fin.fixGroup')||'interval';
-function saveLocal(){ls('fin.data',data)}
+function saveLocal(){_cc={};ls('fin.data',data)}
 function saveCfg(){ls('fin.cfg',cfg)}
 function upsert(kind,rec){rec.updatedAt=now();const a=data[kind];const i=a.findIndex(x=>x.id===rec.id);if(i>=0)a[i]=rec;else a.push(rec);changed()}
 function remove(kind,id){const x=data[kind].find(x=>x.id===id);if(x){x.deleted=true;x.updatedAt=now();changed()}}
@@ -213,6 +213,13 @@ function upcoming(days){const out=[],t=todayISO(),end=new Date(Date.now()+days*8
   for(const r of live(data.recurring)){if(r.kind==='in')continue;for(let i=f;i<=l;i++){const m=ymOf(i);if(dueIn(r,m)){const d=dueDate(r,m);if(d>=t&&d<=end)out.push({r,d})}}}
   return out.sort((a,b)=>a.d<b.d?-1:1)}
 
+/* ---------- Übertrag ---------- */
+let _cc={};
+function baseMonth(){const e=live(data.expenses);if(!e.length)return null;return e.reduce((a,x)=>x.date<a?x.date:a,'9999').slice(0,7)}
+const carryDecision=p=>live(data.carries).find(x=>x.month===p);
+function carryIn(m){if(m in _cc)return _cc[m];_cc[m]=0;const p=ymOf(mi(m)-1),b=baseMonth();let v=0;
+  if(b&&p>=b&&p<todayYM()&&mi(m)-mi(b)<60){const a=calc(p).avail;const d=carryDecision(p);if(a<0)v=a;else if(d&&d.choice==='carry')v=a}
+  _cc[m]=Math.round(v*100)/100;return _cc[m]}
 /* ---------- Monatsrechnung ---------- */
 function calc(m){
   let fixed=0,reserve=0,once=0,dueRare=0;const L=live(data.recurring);
@@ -230,11 +237,12 @@ function calc(m){
   for(const x of extra){const r=srcRows.find(s=>s[0]===x.source);if(r)r[1]+=x.amount;else srcRows.push([x.source,x.amount,true])}
   const goal=+data.settings.savingsGoal||0;
   const exp=live(data.expenses).filter(e=>e.date.startsWith(m));const spent=sum(exp);
-  const budget=income-fixed-reserve-once-goal;const avail=budget-spent;
+  const carry=carryIn(m);
+  const budget=income-fixed-reserve-once-goal+carry;const avail=budget-spent;
   const t=todayYM();let daysLeft=0;const[y,mo]=m.split('-').map(Number);const last=new Date(y,mo,0).getDate();
   if(m===t)daysLeft=last-new Date().getDate()+1;else if(m>t)daysLeft=last;
   const byCat={};for(const e of exp)byCat[e.cat]=(byCat[e.cat]||0)+e.amount;
-  return{income,incomeActual,incomePlanned,srcRows,fixed,reserve,once,dueRare,goal,spent,budget,avail,daysLeft,byCat,exp}}
+  return{carry,income,incomeActual,incomePlanned,srcRows,fixed,reserve,once,dueRare,goal,spent,budget,avail,daysLeft,byCat,exp}}
 
 const incMonth=x=>x.forMonth||x.date.slice(0,7);
 function lastWorkday(m){const[y,mo]=m.split('-').map(Number);const d=new Date(y,mo,0);while(d.getDay()===0||d.getDay()===6)d.setDate(d.getDate()-1);return `${m}-${pad2(d.getDate())}`}
@@ -306,7 +314,7 @@ async function sync(){
       if(p.status===404||p.status===403)throw new Error('Kein Schreibrecht – Token braucht „Contents: Read and write“ für dieses Repo');
       throw new Error('Speichern fehlgeschlagen ('+p.status+')')}
     if(!done)throw new Error('Konflikt, versuche es gleich nochmal');
-    ls('fin.lastSync',Date.now());setSync('ok');if(!QUICK){askMe();askSalary()}
+    ls('fin.lastSync',Date.now());setSync('ok');if(!QUICK){askMe();askCarry();askSalary()}
   }catch(e){setSync('err',e.message||'Keine Verbindung')}
   syncing=false;if(again){again=false;sync()}}
 async function testConnection(){
@@ -391,7 +399,7 @@ function row({ic,t,s,a,cls='',act='',id='',extra=''}){return `<div class="row ${
 
 /* ---------- Ansichten ---------- */
 function render(){
-  if(QUICK)return;
+  if(QUICK)return;_cc={};
   $('#mlabel').textContent=monthName(curMonth);
   document.querySelectorAll('nav [data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
   $('#view').innerHTML=({home:vHome,list:vList,fix:vFix,tips:vTips,settings:vSettings}[view]||vHome)();
@@ -410,6 +418,7 @@ function vHome(){
   <div class="bar"><i style="width:${pct}%"></i></div><div class="sub">${eur(c.spent)} von ${eur(c.budget)} frei verfügbarem Geld ausgegeben</div></section>`;
   h+=`<section class="card"><h2>So rechnet sich das</h2>
   ${row({ic:'💶',t:'Einnahmen',s:c.incomePlanned>0?(c.incomeActual>0?`${eur(c.incomeActual)} eingegangen, ${eur(c.incomePlanned)} noch erwartet`:'Schätzung – echtes Gehalt über + eintragen'):'alles eingegangen ✓',a:`<span class="pos">${eur(c.income)}</span>`})}
+  ${c.carry?row({ic:c.carry<0?'⤵️':'⤴️',t:`Übertrag aus ${MONTHS[+ymOf(mi(curMonth)-1).slice(5)-1]}`,s:c.carry<0?'letzten Monat drüber – wird abgezogen':'mitgenommen',a:`<span class="${c.carry<0?'':'pos'}">${c.carry<0?'− ':'+ '}${eur(Math.abs(c.carry))}</span>`}):''}
   ${row({ic:'↻',t:'Monatliche Fixkosten',a:'− '+eur(c.fixed),act:'nav',extra:'data-v="fix"'})}
   ${c.reserve?row({ic:'🏦',t:'Rücklage für seltene Kosten',s:'vierteljährlich, jährlich …'+(c.dueRare?` · diesen Monat fällig: ${eur(c.dueRare)}`:''),a:'− '+eur(c.reserve)}):''}
   ${c.once?row({ic:'📌',t:'Einmalige Kosten diesen Monat',a:'− '+eur(c.once)}):''}
@@ -430,6 +439,7 @@ function claudeText(){const m=curMonth,c=calc(m);const L=live(data.recurring);co
   const prev=[1,2,3].map(i=>ymOf(mi(m)-i)).map(p=>`${monthName(p)}: ${f(sum(live(data.expenses).filter(e=>e.date.startsWith(p))))}`).join(', ');
   return [`Finanz-Stand ${monthName(m)} (Stand ${fmtDate(todayISO())}) – bitte einschätzen, was gut läuft und was besser werden muss.`,
   `Einnahmen: ${f(c.income)} (davon ${f(c.incomeActual)} eingegangen)`,`Monatliche Fixkosten: ${f(c.fixed)} · Rücklage seltene Kosten: ${f(c.reserve)}/Monat · Sparziel: ${f(c.goal)}`,
+  c.carry?`Übertrag Vormonat: ${f(c.carry)}`:'',
   `Variable Ausgaben bisher: ${f(c.spent)} · noch verfügbar: ${f(c.avail)} · Resttage: ${c.daysLeft}`,
   people().length>1?`Nach Person: ${people().map(p=>`${p} ${f(sum(c.exp.filter(e=>e.who===p)))}`).join(', ')}`:'',
   `Nach Kategorie: ${Object.entries(c.byCat).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k} ${f(v)}`).join(', ')||'–'}`,
@@ -636,7 +646,7 @@ document.addEventListener('dblclick',e=>e.preventDefault(),{passive:false});
 document.addEventListener('click',e=>{const t=e.target.closest('[data-act]');if(!t)return;const f=ACT[t.dataset.act];if(f){e.preventDefault();f(t.dataset,t)}});
 
 /* ---------- Schnell-Eintrag (Home-Bildschirm / Kurzbefehl) ---------- */
-function quickScreen(pre={}){
+function quickScreen(pre={}){_cc={};
   document.body.classList.add('quick');$('#hdr').style.display='none';$('#nav').style.display='none';
   const v=$('#view');v.className='qwrap';v.style.padding='14px 16px';
   const needCon=!hasRemote(),needMe=!cfg.me&&people().length>1;
@@ -661,6 +671,21 @@ function askSalary(){
   <div class="btns"><button class="btn ghost" data-act="salLater">Noch nicht</button><button class="btn in" data-act="salNow" data-m="${m}">Jetzt eintragen</button></div>`)}
 ACT.salLater=()=>{ls('fin.salAsk',todayISO());closeSheet();toast('Okay, Kiko fragt morgen nochmal 🐼')};
 ACT.salNow=d=>{ls('fin.salAsk',todayISO());closeSheet();openEntry('in',null,{cat:'Gehalt',forMonth:d.m})};
+function askCarry(){
+  if(!$('#sheet').classList.contains('hidden'))return;const p=ymOf(mi(todayYM())-1),b=baseMonth();if(!b||p<b||carryDecision(p))return;
+  const a=calc(p).avail,pn=MONTHS[+p.slice(5)-1],cn=MONTHS[+todayYM().slice(5)-1];if(Math.abs(a)<1)return;
+  if(a<0){openSheet(`<div style="text-align:center"><div class="moni worried" style="display:inline-block">${moniSVG('worried',96)}</div><h3 style="margin-top:6px">Im ${pn} wart ihr ${eur(-a)} drüber</h3><p class="sub" style="margin:0 0 14px">Das Geld ist echt weg (wahrscheinlich im Dispo). Kiko zieht es deshalb vom ${cn} ab, damit die Zahlen ehrlich bleiben.</p></div><button class="btn" data-act="carryPick" data-c="minus" data-p="${p}">Verstanden</button>`);return}
+  const debts=live(data.debts).filter(d=>(+d.balance||0)>0).sort((x,y)=>y.rate-x.rate);const top=debts[0];
+  openSheet(`<div style="text-align:center"><div class="moni happy" style="display:inline-block">${moniSVG('happy',96)}</div><h3 style="margin-top:6px">${eur(a)} übrig im ${pn}! 🎉</h3><p class="sub" style="margin:0 0 14px">Stark! Wohin damit?</p></div>
+  ${top?`<button class="btn" data-act="carryPick" data-c="debt" data-p="${p}" data-d="${top.id}" style="margin-bottom:8px">🏦 ${esc(top.name)} tilgen<br><small style="font-weight:400;opacity:.85">spart ca. ${eur(a*top.rate/100)} Zinsen pro Jahr · Kikos Tipp</small></button>`:''}
+  <button class="btn ghost" data-act="carryPick" data-c="reserve" data-p="${p}" style="margin-bottom:8px">🏦 Auf die Rücklage legen</button>
+  <button class="btn ghost" data-act="carryPick" data-c="carry" data-p="${p}">⤴️ In den ${cn} mitnehmen</button>`)}
+ACT.carryPick=d=>{const p=d.p,a=calc(p).avail;
+  upsert('carries',{id:'carry-'+p,month:p,choice:d.c,amount:Math.round(a*100)/100,debtId:d.d||'',who:cfg.me||''});
+  if(d.c==='debt'){const x=data.debts.find(y=>y.id===d.d);if(x){upsert('debts',{...x,balance:Math.max(0,Math.round((x.balance-a)*100)/100)});toast(`${esc(x.name)}: Restschuld jetzt ${eur(Math.max(0,x.balance))} – überweis die ${eur(a)} noch in der Bank!`)}}
+  else if(d.c==='reserve')toast(`Überweis die ${eur(a)} noch aufs Rücklagen-Konto 🐼`);
+  else if(d.c==='carry')toast(`${eur(a)} sind im neuen Monat dabei`);
+  closeSheet()};
 function askMe(){if(cfg.me||people().length<2||!$('#sheet').classList.contains('hidden'))return;openSheet(`<h3>Wer bist du? 👋</h3><p class="sub">Damit deine Buchungen deinen Namen bekommen. Kannst du später unter ⚙︎ ändern.</p><div class="btns" style="margin-top:14px">${people().map(p=>`<button class="btn" data-act="setMe" data-p="${esc(p)}">${esc(p)}</button>`).join('')}</div>`)}
 ACT.setMe=d=>{cfg.me=d.p;saveCfg();closeSheet();toast('Hallo '+d.p+'!');render()};
 /* ---------- Start ---------- */
@@ -675,7 +700,7 @@ ACT.setMe=d=>{cfg.me=d.p;saveCfg();closeSheet();toast('Hallo '+d.p+'!');render()
     quickScreen();const c=calc(todayYM());$('#view').innerHTML=`<div class="done"><div class="chk">✓</div><h3>${eur(base.amount)} · ${esc(pre.cat)}</h3><p class="sub">Noch verfügbar diesen Monat:</p><div style="font-size:34px;font-weight:700">${eur(c.avail)}</div><div class="btns" style="margin-top:24px"><a class="btn" style="text-decoration:none;display:block" href="./">Zur App</a></div><p class="mini" id="qSync"></p></div>`;
     sync().then(()=>{const e=$('#qSync');if(e)e.textContent=syncText()});return}
   if(!QUICK&&people().length>1&&!cfg.me)setTimeout(askMe,400);
-  if(!QUICK)setTimeout(askSalary,900);
+  if(!QUICK){setTimeout(askCarry,800);setTimeout(askSalary,1100)}
   if(QUICK||pre.amt||q.get('neu')!=null){if(q.toString())history.replaceState(null,'',location.pathname);quickScreen(pre)}else render();
   sync();
   setInterval(()=>{if(document.visibilityState==='visible'&&!document.querySelector('#sheet:not(.hidden)'))sync()},60000);
