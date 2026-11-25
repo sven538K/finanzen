@@ -206,7 +206,7 @@ function calc(m){
     else if(n===0){if(dueIn(r,m))once+=r.amount}
     else{if(reserveActive(r,m))reserve+=r.amount/n;if(dueIn(r,m))dueRare+=r.amount}}
   // Einnahmen: Plan pro Quelle, ersetzt durch tatsächliche Buchungen
-  const inc=live(data.incomes).filter(x=>x.date.startsWith(m));
+  const inc=live(data.incomes).filter(x=>incMonth(x)===m);
   const plan=[['Gehalt',+data.settings.income||0]];
   for(const r of L)if(r.kind==='in'&&dueIn(r,m))plan.push([r.name,r.amount]);
   let income=0,incomeActual=0,incomePlanned=0;const srcRows=[];
@@ -221,6 +221,10 @@ function calc(m){
   const byCat={};for(const e of exp)byCat[e.cat]=(byCat[e.cat]||0)+e.amount;
   return{income,incomeActual,incomePlanned,srcRows,fixed,reserve,once,dueRare,goal,spent,budget,avail,daysLeft,byCat,exp}}
 
+const incMonth=x=>x.forMonth||x.date.slice(0,7);
+function lastWorkday(m){const[y,mo]=m.split('-').map(Number);const d=new Date(y,mo,0);while(d.getDay()===0||d.getDay()===6)d.setDate(d.getDate()-1);return `${m}-${pad2(d.getDate())}`}
+function salaryDueMonth(){const t=todayISO(),m=t.slice(0,7);if(t>=lastWorkday(m))return ymOf(mi(m)+1);if(+t.slice(8)<=5)return m;return null}
+const hasSalary=m=>live(data.incomes).some(x=>x.source==='Gehalt'&&incMonth(x)===m);
 /* ---------- Schulden ---------- */
 function payoff(bal,rate,pay){const r=(+rate||0)/1200;bal=+bal||0;pay=+pay||0;if(bal<=0)return{months:0,interest:0};if(pay<=bal*r+0.01)return null;let m=0,int=0,b=bal;while(b>0.005&&m<720){const i=b*r;int+=i;b=b+i-pay;m++}return{months:m,interest:int}}
 const inMonths=n=>monthName(ymOf(mi(todayYM())+n));
@@ -287,7 +291,7 @@ async function sync(){
       if(p.status===404||p.status===403)throw new Error('Kein Schreibrecht – Token braucht „Contents: Read and write“ für dieses Repo');
       throw new Error('Speichern fehlgeschlagen ('+p.status+')')}
     if(!done)throw new Error('Konflikt, versuche es gleich nochmal');
-    ls('fin.lastSync',Date.now());setSync('ok');if(!QUICK)askMe()
+    ls('fin.lastSync',Date.now());setSync('ok');if(!QUICK){askMe();askSalary()}
   }catch(e){setSync('err',e.message||'Keine Verbindung')}
   syncing=false;if(again){again=false;sync()}}
 async function testConnection(){
@@ -373,7 +377,7 @@ function vHome(){
   <div class="bar"><i style="width:${pct}%"></i></div><div class="sub">${eur(c.spent)} von ${eur(c.budget)} frei verfügbarem Geld ausgegeben</div>
   <div class="btns" style="margin-top:14px"><button class="btn" data-act="add" data-t="out">− Ausgabe</button><button class="btn in" data-act="add" data-t="in">+ Einnahme</button></div></section>`;
   h+=`<section class="card"><h2>So rechnet sich das</h2>
-  ${row({ic:'💶',t:'Einnahmen',s:c.incomePlanned>0?(c.incomeActual>0?`${eur(c.incomeActual)} eingegangen, ${eur(c.incomePlanned)} noch erwartet`:'geplant – tippe „+ Einnahme“, wenn’s da ist'):'alles eingegangen ✓',a:`<span class="pos">${eur(c.income)}</span>`})}
+  ${row({ic:'💶',t:'Einnahmen',s:c.incomePlanned>0?(c.incomeActual>0?`${eur(c.incomeActual)} eingegangen, ${eur(c.incomePlanned)} noch erwartet`:'Schätzung – trag das echte Gehalt ein, sobald es da ist'):'alles eingegangen ✓',a:`<span class="pos">${eur(c.income)}</span>`})}
   ${row({ic:'↻',t:'Monatliche Fixkosten',a:'− '+eur(c.fixed),act:'nav',extra:'data-v="fix"'})}
   ${c.reserve?row({ic:'🏦',t:'Rücklage für seltene Kosten',s:'vierteljährlich, jährlich …'+(c.dueRare?` · diesen Monat fällig: ${eur(c.dueRare)}`:''),a:'− '+eur(c.reserve)}):''}
   ${c.once?row({ic:'📌',t:'Einmalige Kosten diesen Monat',a:'− '+eur(c.once)}):''}
@@ -405,7 +409,7 @@ const tipHTML=([lvl,t,p])=>`<div class="tip ${lvl}"><b>${t}</b><p>${p}</p></div>
 
 function vList(){
   const m=curMonth;const ex=live(data.expenses).filter(e=>e.date.startsWith(m)).map(x=>({...x,_t:'out'}));
-  const inc=live(data.incomes).filter(e=>e.date.startsWith(m)).map(x=>({...x,_t:'in'}));
+  const inc=live(data.incomes).filter(e=>incMonth(e)===m).map(x=>({...x,_t:'in'}));
   const F=a=>listWho?a.filter(x=>x.who===listWho):a;
   const all=[...F(ex),...F(inc)].sort((a,b)=>a.date===b.date?(b.createdAt||'').localeCompare(a.createdAt||''):b.date.localeCompare(a.date));
   let h=people().length>1?`<div class="seg">${['',...people()].map(p=>`<button data-act="who" data-p="${esc(p)}" class="${p===listWho?'on':''}">${p?esc(p):'Alle'}</button>`).join('')}</div>`:'';
@@ -413,7 +417,7 @@ function vList(){
   if(!all.length)return h+`<div class="empty">Noch keine Buchungen${listWho?' von '+esc(listWho):''} im ${monthName(m)}.<br>Tippe unten auf +.</div>`;
   let day='';h+='<section class="card" style="padding-top:6px">';
   for(const e of all){if(e.date!==day){day=e.date;const wd=new Date(day+'T12:00').toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'});h+=`<div class="day">${wd}</div>`}
-    if(e._t==='in')h+=row({ic:(inSources().find(s=>s[1]===e.source)||['💰'])[0],t:esc(e.note||e.source),s:esc(e.source)+(e.who?' · '+esc(e.who):''),a:`<span class="pos">+ ${eur(e.amount)}</span>`,act:'editIn',id:e.id});
+    if(e._t==='in')h+=row({ic:(inSources().find(s=>s[1]===e.source)||['💰'])[0],t:esc(e.note||e.source),s:esc(e.source)+(e.forMonth&&e.forMonth!==e.date.slice(0,7)?` · eingegangen ${fmtDate(e.date)}`:'')+(e.who?' · '+esc(e.who):''),a:`<span class="pos">+ ${eur(e.amount)}</span>`,act:'editIn',id:e.id});
     else h+=row({ic:catIcon(e.cat),extra:`style="--icb:${tint(catColor(e.cat))}"`,t:esc(e.note||e.cat),s:esc(e.cat)+(e.who?' · '+esc(e.who):''),a:'− '+eur(e.amount),act:'editExp',id:e.id})}
   return h+'</section>'}
 
@@ -487,18 +491,22 @@ function entryForm(root,{type='out',id=null,pre={}},onDone){
   let who=rec?.who||cfg.me||people()[0]||'';
   const st={type,amt:rec?String(rec.amount).replace('.',','):(pre.amt||''),cat:rec?(type==='in'?rec.source:rec.cat):(pre.cat||'')};
   if(!st.cat)st.cat=type==='in'?'Gehalt':(ls('fin.lastCat')||cats()[0][1]);
+  const defFor=d=>+d.slice(8)>=20?ymOf(mi(d.slice(0,7))+1):d.slice(0,7);
+  st.forMonth=rec?.forMonth||pre.forMonth||defFor(rec?rec.date:todayISO());
   const draw=()=>{const IN=st.type==='in';const opts=IN?inSources():cats();
     root.innerHTML=`${isEdit?`<h3>${IN?'Einnahme':'Ausgabe'} bearbeiten</h3>`:`<div class="seg ${IN?'in':''}"><button data-ty="out" class="${IN?'':'on'}">− Ausgabe</button><button data-ty="in" class="${IN?'on':''}">+ Einnahme</button></div>`}
     <div class="amt ${IN?'in':''}" id="amt"></div>
     <div class="chips ${IN?'in':''}" id="cats">${opts.map(([i,n])=>`<button class="chip ${n===st.cat?'on':''}" style="--cc:${IN?'var(--in)':catColor(n)}" data-cat="${esc(n)}">${i} ${esc(n)}</button>`).join('')}</div>
     ${people().length>1?`<div class="seg" id="who" style="margin-bottom:10px">${people().map(p=>`<button data-who="${esc(p)}" class="${p===who?'on':''}">${esc(p)}</button>`).join('')}</div>`:''}
     <div class="pad" id="pad">${['1','2','3','4','5','6','7','8','9',',','0','⌫'].map(k=>`<button data-k="${k}">${k}</button>`).join('')}</div>
+    ${IN?`<div class="mini" style="margin:0 0 4px">Gilt für welchen Monat?</div><div class="seg in" id="forM" style="margin-bottom:10px">${[-1,0,1].map(o=>{const fm=ymOf(mi(todayISO().slice(0,7))+o);return `<button data-for="${fm}" class="${fm===st.forMonth?'on':''}">${MONTHS[+fm.slice(5)-1]}</button>`}).join('')}</div>`:''}
     <div class="two"><input class="inp" id="note" placeholder="Notiz (optional)" value="${esc(rec?.note||pre.note||'')}"><input class="inp" id="date" type="date" value="${rec?rec.date:todayISO()}" style="flex:0 0 150px"></div>
     <div class="btns">${isEdit?'<button class="btn ghost danger" id="del">Löschen</button>':''}<button class="btn ${IN?'in':''}" id="save">${IN?'Einnahme speichern':'Speichern'}</button></div>`;
     upd()};
   const upd=()=>{const a=$('#amt');if(a)a.textContent=(st.type==='in'?'+ ':'')+(st.amt||'0')+' €'};
   root.onclick=ev=>{const b=ev.target.closest('button');if(!b)return;
     if(b.dataset.ty){const n=st.amt,nt=$('#note').value;st.type=b.dataset.ty;st.cat=st.type==='in'?'Gehalt':(ls('fin.lastCat')||cats()[0][1]);draw();st.amt=n;$('#note').value=nt;upd();return}
+    if(b.dataset.for){st.forMonth=b.dataset.for;root.querySelectorAll('[data-for]').forEach(x=>x.classList.toggle('on',x===b));return}
     if(b.dataset.who!=null){who=b.dataset.who;root.querySelectorAll('[data-who]').forEach(x=>x.classList.toggle('on',x===b));return}
     if(b.dataset.cat){st.cat=b.dataset.cat;root.querySelectorAll('[data-cat]').forEach(x=>x.classList.toggle('on',x===b));return}
     if(b.dataset.k){let a=st.amt;const k=b.dataset.k;
@@ -508,7 +516,7 @@ function entryForm(root,{type='out',id=null,pre={}},onDone){
     if(b.id==='del'){if(confirm('Wirklich löschen?')){remove(type==='in'?'incomes':'expenses',id);onDone(null)}return}
     if(b.id==='save'){const amount=num(st.amt);if(!(amount>0)){$('#amt').classList.add('shake');setTimeout(()=>$('#amt')?.classList.remove('shake'),350);toast('Betrag fehlt');return}
       const base={id:rec?.id||uid(),date:$('#date').value||todayISO(),amount,note:$('#note').value.trim(),who,createdAt:rec?.createdAt||now()};
-      if(st.type==='in'){upsert('incomes',{...base,source:st.cat})}else{ls('fin.lastCat',st.cat);upsert('expenses',{...base,cat:st.cat})}
+      if(st.type==='in'){upsert('incomes',{...base,source:st.cat,forMonth:st.forMonth})}else{ls('fin.lastCat',st.cat);upsert('expenses',{...base,cat:st.cat})}
       onDone({...base,type:st.type})}};
   draw();
   root.onkeydown=null;}
@@ -589,6 +597,14 @@ function quickScreen(pre={}){
     <div class="btns" style="margin-top:24px"><button class="btn ghost" id="qMore">Noch eine</button><a class="btn" style="text-decoration:none;display:block" href="./">Zur App</a></div><p class="mini" id="qSync" style="margin-top:14px"></p></div>`;
     $('#qMore').onclick=()=>quickScreen();const upd=()=>{const e=$('#qSync');if(e)e.textContent=syncText()};upd();setTimeout(upd,1500);setTimeout(upd,4000)})}
 
+function askSalary(){
+  const m=salaryDueMonth();if(!m||!data.settings.income&&!live(data.incomes).length&&!live(data.recurring).length)return;
+  if(hasSalary(m)||ls('fin.salAsk')===todayISO()||!$('#sheet').classList.contains('hidden'))return;
+  openSheet(`<div style="text-align:center"><div class="moni happy" style="display:inline-block">${moniSVG('happy',96)}</div>
+  <h3 style="margin-top:6px">Ist dein Gehalt schon da? 💶</h3><p class="sub" style="margin:0 0 14px">Trag ein, was wirklich auf dem Konto gelandet ist. Dann rechnet die App für ${MONTHS[+m.slice(5)-1]} mit echtem Geld statt mit einer Schätzung.</p></div>
+  <div class="btns"><button class="btn ghost" data-act="salLater">Noch nicht</button><button class="btn in" data-act="salNow" data-m="${m}">Jetzt eintragen</button></div>`)}
+ACT.salLater=()=>{ls('fin.salAsk',todayISO());closeSheet();toast('Okay, Kiko fragt morgen nochmal 🐼')};
+ACT.salNow=d=>{ls('fin.salAsk',todayISO());closeSheet();openEntry('in',null,{cat:'Gehalt',forMonth:d.m})};
 function askMe(){if(cfg.me||people().length<2||!$('#sheet').classList.contains('hidden'))return;openSheet(`<h3>Wer bist du? 👋</h3><p class="sub">Damit deine Buchungen deinen Namen bekommen. Kannst du später unter ⚙︎ ändern.</p><div class="btns" style="margin-top:14px">${people().map(p=>`<button class="btn" data-act="setMe" data-p="${esc(p)}">${esc(p)}</button>`).join('')}</div>`)}
 ACT.setMe=d=>{cfg.me=d.p;saveCfg();closeSheet();toast('Hallo '+d.p+'!');render()};
 /* ---------- Start ---------- */
@@ -603,10 +619,11 @@ ACT.setMe=d=>{cfg.me=d.p;saveCfg();closeSheet();toast('Hallo '+d.p+'!');render()
     quickScreen();const c=calc(todayYM());$('#view').innerHTML=`<div class="done"><div class="chk">✓</div><h3>${eur(base.amount)} · ${esc(pre.cat)}</h3><p class="sub">Noch verfügbar diesen Monat:</p><div style="font-size:34px;font-weight:700">${eur(c.avail)}</div><div class="btns" style="margin-top:24px"><a class="btn" style="text-decoration:none;display:block" href="./">Zur App</a></div><p class="mini" id="qSync"></p></div>`;
     sync().then(()=>{const e=$('#qSync');if(e)e.textContent=syncText()});return}
   if(!QUICK&&people().length>1&&!cfg.me)setTimeout(askMe,400);
+  if(!QUICK)setTimeout(askSalary,900);
   if(QUICK||pre.amt||q.get('neu')!=null){if(q.toString())history.replaceState(null,'',location.pathname);quickScreen(pre)}else render();
   sync();
   setInterval(()=>{if(document.visibilityState==='visible'&&!document.querySelector('#sheet:not(.hidden)'))sync()},60000);
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')sync()});
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){sync();if(!QUICK)setTimeout(askSalary,600)}});
   if('serviceWorker'in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 })();
 </script>
