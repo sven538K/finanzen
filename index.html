@@ -567,6 +567,14 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-act]');if(
 function quickScreen(pre={}){
   document.body.classList.add('quick');$('#hdr').style.display='none';$('#nav').style.display='none';
   const v=$('#view');v.className='qwrap';v.style.padding='14px 16px';
+  const needCon=!hasRemote(),needMe=!cfg.me&&people().length>1;
+  if(needCon||needMe){v.innerHTML=`<div class="card" style="margin-top:10px"><h3>🐼 Kurz einrichten</h3>
+    ${needCon?`<p class="sub" style="margin:0 0 8px">Füge den Verbindungscode aus der App ein (dort ⚙︎ → „Code kopieren“).</p><div class="two"><input class="inp" id="qCode" placeholder="Code einfügen" autocapitalize="off" autocorrect="off"><button class="btn small" id="qApply" style="flex:none">OK</button></div>`
+    :`<p class="sub" style="margin:0 0 10px">Wer bist du auf diesem Handy?</p><div class="btns">${people().map(p=>`<button class="btn" data-me="${esc(p)}">${esc(p)}</button>`).join('')}</div>`}</div>`;
+    v.onclick=e=>{const b=e.target.closest('button');if(!b)return;
+      if(b.id==='qApply'){if(applyCode($('#qCode').value)){toast('Verbunden ✓');v.innerHTML='<div class="empty">Lade eure Daten …</div>';sync().then(()=>quickScreen(pre))}else toast('Code ungültig')}
+      if(b.dataset.me){cfg.me=b.dataset.me;saveCfg();quickScreen(pre)}};
+    return}
   entryForm(v,{type:pre.type||'out',pre},r=>{const c=calc(todayYM());
     const isIn=r&&r.type==='in';const why=!isIn&&r?dumbReason(live(data.expenses).find(x=>x.id===r.id),c):'';const md=isIn?'happy':why||c.avail<0?'angry':moniState(c)[0];
     v.innerHTML=`<div class="done"><div class="moni ${md}" style="display:inline-block">${moniSVG(md,110)}</div>${why||isIn?`<div class="bubble" style="display:inline-block;margin-bottom:10px">${esc(isIn?'Geld rein! So mag ich das. 🤑':why)}</div>`:''}<h3>${isIn?'Einnahme':'Ausgabe'} gespeichert ✓</h3><p class="sub">Noch verfügbar diesen Monat:</p><div style="font-size:34px;font-weight:700;${c.avail<0?'color:var(--bad)':''}">${eur(c.avail)}</div>
