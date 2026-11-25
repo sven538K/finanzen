@@ -75,12 +75,13 @@ header h1{background:linear-gradient(90deg,#6741d9,#e64980);-webkit-background-c
 .tip.bad{border-color:var(--bad);background:var(--bad2)}.tip.warn{border-color:var(--warn);background:var(--warn2)}
 .tip b{display:block;margin-bottom:3px}
 .tip p{margin:0;font-size:14px}
-nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--card);border-top:1px solid var(--ln);display:flex;justify-content:space-around;align-items:center;padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
-nav button{border:0;background:none;display:flex;flex-direction:column;align-items:center;font-size:11px;color:var(--mu);gap:2px;padding:4px 8px;min-width:60px}
+nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--card);border-top:1px solid var(--ln);display:grid;grid-template-columns:repeat(5,1fr);align-items:center;justify-items:center;padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+nav button{border:0;background:none;display:flex;flex-direction:column;align-items:center;font-size:11px;color:var(--mu);gap:2px;padding:4px 2px;width:100%}
 nav button span{font-size:21px;line-height:1}
 nav button.on{color:var(--ac);font-weight:600}
-nav .plus{width:62px;height:62px;border-radius:22px;background:linear-gradient(145deg,#9775fa 0%,#7950f2 45%,#e64980 100%);margin-top:-30px;border:5px solid var(--card);box-shadow:0 10px 24px rgba(121,80,242,.45),inset 0 2px 0 rgba(255,255,255,.35);justify-content:center;align-items:center;min-width:0;padding:0;transform:rotate(0);transition:transform .15s}
-nav .plus:active{transform:scale(.92) rotate(90deg)}
+nav .plus{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#845ef7,#e64980);margin-top:-34px;border:6px solid var(--bg);box-shadow:0 8px 20px rgba(132,94,247,.4);display:flex;justify-content:center;align-items:center;padding:0;transition:transform .12s}
+nav .plus svg{display:block}
+nav .plus:active{transform:scale(.9)}
 .sheet{position:fixed;inset:0;z-index:20;display:flex;align-items:flex-end;justify-content:center}
 .sheet.hidden{display:none}
 .sheet-bg{position:absolute;inset:0;background:rgba(0,0,0,.35)}
@@ -135,7 +136,7 @@ textarea{min-height:160px;font-family:ui-monospace,Menlo,monospace!important;fon
 <nav id="nav">
   <button data-act="nav" data-v="home"><span>◎</span>Übersicht</button>
   <button data-act="nav" data-v="list"><span>☰</span>Buchungen</button>
-  <button class="plus" data-act="add" data-t="out" aria-label="Eintragen"><svg width="30" height="30" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/></svg></button>
+  <button class="plus" data-act="add" data-t="out" aria-label="Eintragen"><svg width="26" height="26" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg></button>
   <button data-act="nav" data-v="fix"><span>↻</span>Fixkosten</button>
   <button data-act="nav" data-v="tips"><span>💡</span>Tipps</button>
 </nav>
@@ -155,7 +156,9 @@ const todayISO=()=>{const d=new Date();return `${d.getFullYear()}-${pad2(d.getMo
 const todayYM=()=>todayISO().slice(0,7);
 const mi=s=>{const[y,m]=s.split('-').map(Number);return y*12+m-1};
 const ymOf=i=>`${Math.floor(i/12)}-${pad2(i%12+1)}`;
-const MONTHS=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+const MONTHS_DE=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+const MONTHS_EN=['January','February','March','April','May','June','July','August','September','October','November','December'];
+let MONTHS=MONTHS_DE;
 const monthName=m=>`${MONTHS[+m.slice(5,7)-1]} ${m.slice(0,4)}`;
 const monthShort=m=>`${MONTHS[+m.slice(5,7)-1].slice(0,3)} ${m.slice(2,4)}`;
 const fmtDate=d=>`${d.slice(8,10)}.${d.slice(5,7)}.${d.slice(0,4)}`;
@@ -187,7 +190,9 @@ function merge(l,r){return{version:1,settings:(l.settings.updatedAt||'')>=(r.set
   recurring:mergeList(l.recurring,r.recurring),expenses:mergeList(l.expenses,r.expenses),incomes:mergeList(l.incomes,r.incomes),debts:mergeList(l.debts,r.debts),subs:mergeList(l.subs,r.subs),carries:mergeList(l.carries,r.carries)}}
 
 let data=normalize(ls('fin.data'));
-let cfg=Object.assign({owner:'',repo:'',path:'data.json',token:'',me:''},ls('fin.cfg')||{});
+let cfg=Object.assign({owner:'',repo:'',path:'data.json',token:'',me:'',lang:'de'},ls('fin.cfg')||{});
+const EN=()=>cfg.lang==='en';
+MONTHS=EN()?MONTHS_EN:MONTHS_DE;
 let curMonth=todayYM(),view='home',listWho='';
 const people=()=>data.settings.people||[];
 const members=()=>[...new Set([...people(),...(data.settings.extraMembers||[])])];
@@ -213,12 +218,14 @@ function upcoming(days){const out=[],t=todayISO(),end=new Date(Date.now()+days*8
   for(const r of live(data.recurring)){if(r.kind==='in')continue;for(let i=f;i<=l;i++){const m=ymOf(i);if(dueIn(r,m)){const d=dueDate(r,m);if(d>=t&&d<=end)out.push({r,d})}}}
   return out.sort((a,b)=>a.d<b.d?-1:1)}
 
+/* ---------- Startmonat ---------- */
+function startMonth(){if(data.settings.startMonth)return data.settings.startMonth;const ms=[todayYM(),...live(data.expenses).map(e=>e.date.slice(0,7)),...live(data.incomes).map(incMonth)];return ms.sort()[0]}
 /* ---------- Übertrag ---------- */
 let _cc={};
-function baseMonth(){const e=live(data.expenses);if(!e.length)return null;return e.reduce((a,x)=>x.date<a?x.date:a,'9999').slice(0,7)}
+function baseMonth(){const e=live(data.expenses);if(!e.length)return null;const b=e.reduce((a,x)=>x.date<a?x.date:a,'9999').slice(0,7);return b<startMonth()?startMonth():b}
 const carryDecision=p=>live(data.carries).find(x=>x.month===p);
 function carryIn(m){if(m in _cc)return _cc[m];_cc[m]=0;const p=ymOf(mi(m)-1),b=baseMonth();let v=0;
-  if(b&&p>=b&&p<todayYM()&&mi(m)-mi(b)<60){const a=calc(p).avail;const d=carryDecision(p);if(a<0)v=a;else if(d&&d.choice==='carry')v=a}
+  if(b&&p>=b&&p<todayYM()&&mi(m)-mi(b)<60&&hasSalary(p)){const a=calc(p).avail;const d=carryDecision(p);if(a<0)v=a;else if(d&&d.choice==='carry')v=a}
   _cc[m]=Math.round(v*100)/100;return _cc[m]}
 /* ---------- Monatsrechnung ---------- */
 function calc(m){
@@ -229,10 +236,11 @@ function calc(m){
     else{if(reserveActive(r,m))reserve+=r.amount/n;if(dueIn(r,m))dueRare+=r.amount}}
   // Einnahmen: Plan pro Quelle, ersetzt durch tatsächliche Buchungen
   const inc=live(data.incomes).filter(x=>incMonth(x)===m);
-  const plan=[['Gehalt',+data.settings.income||0]];
+  const plan=[];
   for(const r of L)if(r.kind==='in'&&dueIn(r,m))plan.push([r.name,r.amount]);
   let income=0,incomeActual=0,incomePlanned=0;const srcRows=[];
   for(const[name,amt]of plan){const got=inc.filter(x=>x.source===name);if(got.length){const v=sum(got);income+=v;incomeActual+=v;srcRows.push([name,v,true])}else{income+=amt;incomePlanned+=amt;srcRows.push([name,amt,false])}}
+  const hasSal=inc.some(x=>x.source==='Gehalt');
   const extra=inc.filter(x=>!plan.some(p=>p[0]===x.source));const ex=sum(extra);income+=ex;incomeActual+=ex;
   for(const x of extra){const r=srcRows.find(s=>s[0]===x.source);if(r)r[1]+=x.amount;else srcRows.push([x.source,x.amount,true])}
   const goal=+data.settings.savingsGoal||0;
@@ -242,7 +250,7 @@ function calc(m){
   const t=todayYM();let daysLeft=0;const[y,mo]=m.split('-').map(Number);const last=new Date(y,mo,0).getDate();
   if(m===t)daysLeft=last-new Date().getDate()+1;else if(m>t)daysLeft=last;
   const byCat={};for(const e of exp)byCat[e.cat]=(byCat[e.cat]||0)+e.amount;
-  return{carry,income,incomeActual,incomePlanned,srcRows,fixed,reserve,once,dueRare,goal,spent,budget,avail,daysLeft,byCat,exp}}
+  return{hasSal,carry,income,incomeActual,incomePlanned,srcRows,fixed,reserve,once,dueRare,goal,spent,budget,avail,daysLeft,byCat,exp}}
 
 const incMonth=x=>x.forMonth||x.date.slice(0,7);
 function lastWorkday(m){const[y,mo]=m.split('-').map(Number);const d=new Date(y,mo,0);while(d.getDay()===0||d.getDay()===6)d.setDate(d.getDate()-1);return `${m}-${pad2(d.getDate())}`}
@@ -255,13 +263,13 @@ const inMonths=n=>monthName(ymOf(mi(todayYM())+n));
 /* ---------- Tipps ---------- */
 function tips(){
   const T=[],c=calc(curMonth),m=curMonth,L=live(data.recurring).filter(r=>r.kind!=='in');
-  if(!data.settings.income&&!recIn().length)T.push(['warn','Gehalt fehlt','Trag unter ⚙︎ dein geplantes Netto-Gehalt ein, sonst kann die App nicht rechnen, was übrig bleibt.']);
-  if(c.avail<0)T.push(['bad',`${eur(-c.avail)} über Plan`,'Diesen Monat ist mehr raus als geplant. Bis Monatsende nur noch das Nötigste – und schau in „Buchungen“, welche Kategorie ausgerissen ist.']);
+  if(!c.hasSal)T.push(['warn',`Gehalt für ${monthName(m)} fehlt`,'Trag es über + → Einnahme → Gehalt ein. Bis dahin kann die App nicht ehrlich rechnen, was übrig bleibt.']);
+  if(!c.hasSal){}else if(c.avail<0)T.push(['bad',`${eur(-c.avail)} über Plan`,'Diesen Monat ist mehr raus als geplant. Bis Monatsende nur noch das Nötigste – und schau in „Buchungen“, welche Kategorie ausgerissen ist.']);
   else if(c.daysLeft>0&&c.avail/c.daysLeft<15&&c.income>0)T.push(['warn','Wird eng',`Nur noch ${eur(c.avail/c.daysLeft)} pro Tag. Größere Käufe lieber auf nächsten Monat schieben.`]);
-  const fixShare=c.income>0?(c.fixed+c.reserve)/c.income:0;
+  const fixShare=c.hasSal&&c.income>0?(c.fixed+c.reserve)/c.income:0;
   if(fixShare>.65)T.push(['warn',`${Math.round(fixShare*100)} % sind fest verplant`,'Ab ca. 50–60 % wird es schnell eng. Die größten Hebel sind meist Kredite, Leasing und Versicherungen – nicht der Kaffee unterwegs.']);
   if(c.reserve>0){const nx=upcoming(120).find(u=>ivN(u.r)>1);
-    T.push(['',`Rücklage: ${eur(Math.ceil(c.reserve))} pro Monat zur Seite`,`Richte einen Dauerauftrag auf ein Extra-Konto ein (z. B. Unterkonto oder Tagesgeld). Dann sind die seltenen Kosten bezahlt, wenn sie kommen.${nx?` Nächste: ${esc(nx.r.name)} am ${fmtDate(nx.d)} (${eur(nx.r.amount)}).`:''}`])}
+    T.push(['',`Rücklage: ${eur(Math.ceil(c.reserve))} pro Monat zur Seite`,`Die App hält das Geld schon für euch zurück – einfach nicht ausgeben. ${live(data.debts).some(d=>/dispo/i.test(d.name)&&(+d.balance||0)>0)?'Solange ihr im Dispo seid, lasst es auf dem Girokonto: das spart Dispo-Zinsen. Ein Extra-Konto lohnt sich erst danach.':'Am besten per Dauerauftrag auf ein Extra-Konto (z. B. Tagesgeld), damit es nicht aus Versehen weg ist.'}${nx?` Nächste: ${esc(nx.r.name)} am ${fmtDate(nx.d)} (${eur(nx.r.amount)}).`:''}`])}
   else if(L.length)T.push(['warn','Keine Jahres- oder Quartalskosten eingetragen','Genau die werden gern vergessen. Unter „Fixkosten“ gibt es eine Liste der Klassiker zum Durchgehen.']);
   const debts=live(data.debts).filter(d=>(+d.balance||0)>0).sort((a,b)=>b.rate-a.rate);
   if(debts.length){const top=debts[0];const intM=debts.reduce((s,d)=>s+d.balance*d.rate/1200,0);
@@ -386,10 +394,159 @@ async function setPush(on){
     const perm=await Notification.requestPermission();if(perm!=='granted'){toast('Mitteilungen nicht erlaubt – in den iPhone-Einstellungen freigeben');return}
     try{const reg=await navigator.serviceWorker.ready;let sub=await reg.pushManager.getSubscription();if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(VAPID_PUB)});
       let id=ls('fin.subId');if(!id){id=uid();ls('fin.subId',id)}
-      upsert('subs',{id,who:cfg.me,sub:sub.toJSON(),on:true,createdAt:mySub()?.createdAt||now()});toast('🔔 Benachrichtigungen an')}catch(e){toast('Hat nicht geklappt: '+(e.message||e))}
+      upsert('subs',{id,who:cfg.me,lang:cfg.lang,sub:sub.toJSON(),on:true,createdAt:mySub()?.createdAt||now()});toast('🔔 Benachrichtigungen an')}catch(e){toast('Hat nicht geklappt: '+(e.message||e))}
   }else{const x=mySub();if(x){upsert('subs',{...x,on:false})}toast('🔕 Benachrichtigungen aus')}
   updBell()}
 function updBell(){const b=$('#bell');if(b)b.classList.toggle('off',!pushOn())}
+/* ---------- Englisch ---------- */
+const I18N_EXACT={
+'Sync-Status':'Sync status','Benachrichtigungen':'Notifications','Einstellungen':'Settings','Vormonat':'Previous month','Nächster Monat':'Next month',
+'So rechnet sich das':'How it adds up','Einnahmen':'Income','Monatliche Fixkosten':'Monthly fixed costs','Rücklage für seltene Kosten':'Reserve for irregular costs',
+'vierteljährlich, jährlich …':'quarterly, yearly …','Ausgaben bisher':'Spent so far','Bleibt übrig':'Left over','Demnächst fällig':'Coming up',
+'Wofür ging’s raus':'Where it went','Alle Spar-Tipps ansehen':'See all saving tips','Übersicht':'Overview','Buchungen':'Entries','Eintragen':'Add entry',
+'Fixkosten':'Fixed costs','Tipps':'Tips','Schließen':'Close','Verstanden':'Got it','Alle':'All','Ausgaben':'Spending','Einnahmen (gebucht)':'Income (entered)',
+'Pro Monat umgerechnet':'Per month (averaged)','+ Fixkosten oder feste Einnahme':'+ Fixed cost or regular income','Sortieren':'Sort','nächste Abbuchung':'next payment',
+'Betrag':'Amount','Name A–Z':'Name A–Z','Person':'Person','Gruppieren':'Group','nach Rhythmus':'by frequency','nach Person':'by person','nach Kategorie':'by category',
+'keine Gruppen':'no groups','Feste Einnahmen (außer Gehalt)':'Regular income (besides salary)','Häufig vergessen – habt ihr das?':'Often forgotten – do you have these?',
+'Antippen zum Eintragen. Was ihr nicht habt, einfach ignorieren.':'Tap to add. Just ignore what you don’t have.',
+'Schulden':'Debts','+ Schuld / Kredit hinzufügen':'+ Add debt / loan','Restschulden ab und zu aktualisieren (steht im Online-Banking). Die Tipps sind Rechenbeispiele, keine Finanzberatung.':'Update the remaining balances now and then (see online banking). Tips are example calculations, not financial advice.',
+'🤖 Mit Claude besprechen':'🤖 Talk it over with Claude','Kopiert eine Zusammenfassung dieses Monats. In Claude einfügen und fragen: „Wie stehen wir da, was muss besser laufen?“':'Copies a summary of this month. Paste it into Claude and ask: “How are we doing, what needs to improve?”',
+'📋 Stand für Claude kopieren':'📋 Copy summary for Claude','Gilt nur für dieses Handy.':'Only for this phone.','Personen':'People','Wer nutzt die App? (mit Komma trennen)':'Who uses the app? (comma separated)',
+'Wer bist du auf diesem Gerät?':'Who are you on this phone?','– bitte wählen –':'– please choose –','Weitere Familienmitglieder für Fixkosten (mit Komma)':'Other family members for fixed costs (comma separated)',
+'z. B. Kind':'e.g. Kid','z. B. Anna, Ben':'e.g. Anna, Ben','Damit du bei Fixkosten einstellen kannst, zu wem sie gehören.':'So you can set who a fixed cost belongs to.',
+'Neue Buchungen laufen automatisch auf dich. Beim Eintragen kannst du trotzdem umschalten, z. B. wenn du etwas für die andere Person einträgst.':'New entries are put under your name. You can still switch when adding, e.g. if you enter something for the other person.',
+'🔔 Benachrichtigungen':'🔔 Notifications','Bei neuen Buchungen der anderen Person':'When the other person adds an entry','Gilt nur für dieses Handy. Auch über die 🔔 oben ein- und ausschaltbar.':'Only for this phone. You can also switch it with the 🔔 at the top.',
+'Nur in der App vom Home-Bildschirm möglich (iOS 16.4+).':'Only works in the app from the home screen (iOS 16.4+).',
+'Planung':'Planning','Sparen / Extra-Tilgung pro Monat':'Savings / extra repayment per month','Wird jeden Monat vom frei verfügbaren Geld abgezogen.':'Taken off your free money every month.',
+'Kategorien & Budgets':'Categories & budgets','Eine pro Zeile:':'One per line:','(Budget optional)':'(budget optional)','Kategorien speichern':'Save categories',
+'Gemeinsam nutzen (GitHub)':'Sharing (GitHub)','GitHub-Benutzername':'GitHub username','dein-github-name':'your-github-name','Privates Daten-Repo':'Private data repo','z. B. finanzen-daten':'e.g. finanzen-daten',
+'Verbinden & testen':'Connect & test','Code einfügen':'Paste code','Code vom anderen Gerät':'Code from the other phone','Zweites Gerät einrichten':'Set up a second phone',
+'📋 Code kopieren':'📋 Copy code','📋 Link kopieren':'📋 Copy link','Daten':'Data','⬇︎ Backup exportieren':'⬇︎ Export backup','⬆︎ Importieren':'⬆︎ Import',
+'Import ergänzt die vorhandenen Daten, nichts wird überschrieben.':'Import adds to the existing data, nothing gets overwritten.','Daten auf diesem Gerät löschen':'Delete data on this phone',
+'− Ausgabe':'− Expense','+ Einnahme':'+ Income','Notiz (optional)':'Note (optional)','Speichern':'Save','Gilt für welchen Monat?':'Which month is it for?','Einnahme speichern':'Save income',
+'Ausgabe bearbeiten':'Edit expense','Löschen':'Delete','Einnahme bearbeiten':'Edit income','Neu: regelmäßige Zahlung':'New: regular payment','Ausgabe':'Expense','Einnahme':'Income',
+'Name':'Name','z. B. Kfz-Versicherung':'e.g. car insurance','Betrag (€)':'Amount (€)','Wie oft?':'How often?','eigener Wert …':'custom …','Alle wie viele Monate?':'Every how many months?','z. B. 2':'e.g. 2',
+'Gehört zu':'Belongs to','👨‍👩‍👦 Alle':'👨‍👩‍👦 Everyone','Abbuchungstag (ab diesem Monat)':'Payment day (starting this month)','Der Tag zählt für jeden Monat. Ab dem Monat des Datums wird gerechnet.':'The day counts for every month. Counting starts in the month of this date.',
+'Endet nach Monat (optional)':'Ends after month (optional)','Z. B. wenn ein Kredit ausläuft oder ein Vertrag gekündigt ist.':'E.g. when a loan ends or a contract is cancelled.','Kategorie':'Category','Notiz':'Note',
+'optional, z. B. Vertragsnummer-Hinweis':'optional, e.g. contract number','Bearbeiten':'Edit','Neue Schuld / Kredit':'New debt / loan','z. B. Dispo, Ratenkredit':'e.g. overdraft, loan','Restschuld (€)':'Remaining balance (€)',
+'Zinssatz (%)':'Interest rate (%)','Monatliche Rate (€)':'Monthly payment (€)','0 bei Dispo':'0 for overdraft','Die Rate selbst bitte zusätzlich unter „Fixkosten“ eintragen – hier geht’s nur um Restschuld und Tilgungsplan.':'Please also add the payment itself under “Fixed costs” – this is only for the balance and payoff plan.',
+'Schuld bearbeiten':'Edit debt','Wer bist du? 👋':'Who are you? 👋','Damit deine Buchungen deinen Namen bekommen. Kannst du später unter ⚙︎ ändern.':'So your entries get your name. You can change it later under ⚙︎.',
+'Datum einer Abbuchung':'Date of one payment','Am besten die nächste oder letzte Abbuchung – daraus berechnet die App alle weiteren Termine und wie viel du monatlich zurücklegen solltest.':'Best the next or last payment – the app works out all future dates and how much to put aside each month.',
+'Wann fällig?':'When is it due?','Zählt voll in diesem Monat.':'Counts in full in this month.','Bitte die rot markierten Felder ausfüllen':'Please fill in the fields marked red',
+'Ist dein Gehalt schon da? 💶':'Has your salary arrived? 💶','Noch nicht':'Not yet','Jetzt eintragen':'Add it now','Noch kein Gehalt eingetragen':'No salary entered yet',
+'Ohne echtes Gehalt kann Kiko nicht sagen, was noch drin ist.':'Without the real salary Kiko can’t tell what’s left.','Gehalt fehlt noch':'Salary still missing','alles eingegangen ✓':'all received ✓',
+'Fehler: x':'Error: x','⚠︎ Benutzername fehlt':'⚠︎ Username missing','⚠︎ Repo-Name fehlt':'⚠︎ Repo name missing','⚠︎ Token fehlt':'⚠︎ Token missing','🐼 Kurz einrichten':'🐼 Quick setup',
+'Füge den Verbindungscode aus der App ein (dort ⚙︎ → „Code kopieren“).':'Paste the connection code from the app (there: ⚙︎ → “Copy code”).','Wer bist du auf diesem Handy?':'Who are you on this phone?',
+'Noch eine':'Another one','Zur App':'Open app','Noch verfügbar diesen Monat:':'Still available this month:','Ausgabe gespeichert ✓':'Expense saved ✓','Einnahme gespeichert ✓':'Income saved ✓',
+'Willkommen 👋':'Welcome 👋','So legst du los:':'How to start:','+ → Einnahme → Gehalt eintragen':'+ → Income → enter salary','„Fixkosten“ → alles, was regelmäßig abgeht (auch jährlich!)':'“Fixed costs” → everything that’s paid regularly (yearly too!)',
+'⚙︎ → mit GitHub verbinden, damit ihr beide denselben Stand habt':'⚙︎ → connect to GitHub so you both see the same data','Zu den Einstellungen':'Go to settings',
+'Vorschläge für':'Suggestions for','Keine Schulden eingetragen.':'No debts entered.','Stark! Wohin damit?':'Great! Where should it go?','🏦 Auf die Rücklage legen':'🏦 Put it in the reserve',
+'Lade eure Daten …':'Loading your data …','Synchron ✓':'In sync ✓','Synchronisiere …':'Syncing …','Nur auf diesem Gerät (nicht verbunden)':'Only on this phone (not connected)',
+'Gespeichert':'Saved','Gespeichert ✓':'Saved ✓','Kopiert ✓':'Copied ✓','Verbunden ✓':'Connected ✓','Code ungültig':'Invalid code','Importiert ✓':'Imported ✓','Datei nicht lesbar':'Can’t read the file',
+'Kategorien gespeichert':'Categories saved','Betrag fehlt':'Amount missing','Name fehlt':'Name missing','Wirklich löschen?':'Really delete?','Löschen?':'Delete?','Verbindung klappt ✓':'Connection works ✓',
+'Mit GitHub verbunden ✓':'Connected to GitHub ✓','Setup-Link ungültig':'Invalid setup link','Erst mit GitHub verbinden':'Connect to GitHub first','Erst unter ⚙︎ auswählen, wer du bist':'First choose who you are under ⚙︎',
+'🔔 Benachrichtigungen an':'🔔 Notifications on','🔕 Benachrichtigungen aus':'🔕 Notifications off','Mitteilungen nicht erlaubt – in den iPhone-Einstellungen freigeben':'Notifications not allowed – enable them in iPhone settings',
+'Geht nur in der App vom Home-Bildschirm (iOS 16.4 oder neuer)':'Only works in the app from the home screen (iOS 16.4 or newer)','Okay, Kiko fragt morgen nochmal 🐼':'Okay, Kiko will ask again tomorrow 🐼',
+'Bitte Benutzer, Repo und Token eintragen':'Please enter user, repo and token','Was willst du kaufen?':'What do you want to buy?',
+'Alle Daten auf DIESEM Gerät löschen? (Daten auf GitHub bleiben erhalten)':'Delete all data on THIS phone? (data on GitHub stays)',
+'Keine Verbindung':'No connection','Token ungültig':'Invalid token','Token ungültig oder abgelaufen':'Token invalid or expired','Repo nicht gefunden oder Token hat keinen Zugriff darauf':'Repo not found or token has no access',
+'Konflikt, versuche es gleich nochmal':'Conflict, trying again shortly','Alle Fixkosten':'All fixed costs','Geld rein! So mag ich das. 🤑':'Money in! That’s what I like. 🤑',
+'Kiko ist stolz auf euch!':'Kiko is proud of you!','Läuft bei euch! Weiter so! 🎉':'You’re doing great! Keep it up! 🎉','So sieht Kontrolle aus. 😎':'That’s what control looks like. 😎',
+'Alles im Rahmen. Kiko behält euch im Auge. 👀':'All within budget. Kiko is keeping an eye on you. 👀','Gut dabei – jede Ausgabe zählt!':'Doing well – every entry counts!','Weiter eintragen, dann kann Kiko helfen.':'Keep entering, then Kiko can help.',
+'Uff, wird knapp. Bitte nur noch das Nötigste!':'Oof, it’s getting tight. Only the essentials now!','Nix Spontanes mehr diesen Monat, okay?':'No more impulse buys this month, okay?',
+'Du schreibst selbst „unnötig“ dazu?! 😤':'You wrote “unnecessary” yourself?! 😤','Zweimal Essen bestellt an einem Tag?! Kiko und der Kühlschrank weinen.':'Ordered food twice in one day?! Kiko and the fridge are crying.',
+'Wird eng':'Getting tight','Größere Käufe lieber auf nächsten Monat schieben.':'Better move bigger purchases to next month.',
+'Ab ca. 50–60 % wird es schnell eng. Die größten Hebel sind meist Kredite, Leasing und Versicherungen – nicht der Kaffee unterwegs.':'Above roughly 50–60 % things get tight fast. The biggest levers are usually loans, leasing and insurance – not the coffee to go.',
+'Ein Ratenkredit zu deutlich niedrigerem Zins kann sich lohnen – aber nur, wenn der Dispo danach nicht wieder vollläuft. Am besten den Dispo-Rahmen danach senken lassen.':'A loan at a much lower rate can be worth it – but only if the overdraft doesn’t fill up again afterwards. Best to lower the overdraft limit afterwards.',
+'Feste Extra-Tilgung festlegen':'Set a fixed extra repayment','Trag unter ⚙︎ einen Betrag „Sparen / Extra-Tilgung“ ein. Dann zieht die App ihn jeden Monat automatisch ab und ihr gebt ihn nicht aus Versehen aus.':'Enter an amount under ⚙︎ “Savings / extra repayment”. The app then takes it off every month so you don’t spend it by accident.',
+'Essen gehen & Lieferdienst':'Eating out & delivery','Versicherungen vergleichen':'Compare insurance','Einmal im Jahr Tarife checken (z. B. vor der Hauptfälligkeit). Bei Kfz-Versicherung ist der Stichtag für den Wechsel meist der 30.11.':'Check rates once a year (e.g. before renewal). For car insurance the switching deadline is usually 30 Nov.',
+'Einmal im Quartal durchgehen: Was habt ihr letzten Monat nicht genutzt? Kündigen, pausieren oder ins günstigere Jahresabo.':'Go through them once a quarter: what didn’t you use last month? Cancel, pause or switch to the cheaper yearly plan.',
+'Keine Jahres- oder Quartalskosten eingetragen':'No yearly or quarterly costs entered','Genau die werden gern vergessen. Unter „Fixkosten“ gibt es eine Liste der Klassiker zum Durchgehen.':'Those are exactly the ones people forget. Under “Fixed costs” there’s a list of the usual suspects.',
+'Diesen Monat ist mehr raus als geplant. Bis Monatsende nur noch das Nötigste – und schau in „Buchungen“, welche Kategorie ausgerissen ist.':'More went out this month than planned. Only the essentials until the end of the month – and check “Entries” to see which category blew up.',
+'Trag es über + → Einnahme → Gehalt ein. Bis dahin kann die App nicht ehrlich rechnen, was übrig bleibt.':'Enter it via + → Income → Salary. Until then the app can’t honestly work out what’s left.',
+'Das Geld ist echt weg (wahrscheinlich im Dispo). Kiko zieht es deshalb vom':'That money is really gone (probably into the overdraft). So Kiko takes it off',
+'Gerade nichts – sieht gut aus 👍':'Nothing right now – looks good 👍','Je mehr ihr eintragt, desto besser werden die Tipps.':'The more you enter, the better the tips get.',
+'letzten Monat drüber – wird abgezogen':'over budget last month – deducted','mitgenommen':'carried over','Gehalt':'Salary','Spesen':'Expenses refund','Bonus / Extra':'Bonus / extra','Erstattung':'Refund','Sonstiges':'Other',
+'monatlich':'monthly','vierteljährlich':'quarterly','halbjährlich':'half-yearly','jährlich':'yearly','alle 2 Jahre':'every 2 years','einmalig':'one-off','beendet':'ended',
+'Lebensmittel':'Groceries','Essen & Lieferdienst':'Eating out & delivery','Drogerie & Haushalt':'Drugstore & household','Kind':'Kid','Auto & Tanken':'Car & fuel','Kleidung':'Clothes','Freizeit':'Leisure',
+'Gesundheit':'Health','Geschenke':'Gifts','Hochzeit':'Wedding','Wohnen':'Housing','Kredit & Schulden':'Loans & debt','Versicherung':'Insurance','Auto':'Car','Abos & Verträge':'Subscriptions & contracts',
+'Familie':'Family','Steuern & Gebühren':'Taxes & fees','Sonstiges ':'Other',
+'Kfz-Versicherung':'Car insurance','Kfz-Steuer':'Car tax','TÜV / Hauptuntersuchung':'MOT / vehicle inspection','Inspektion / Reifenwechsel':'Car service / tyre change','Rundfunkbeitrag':'TV licence fee',
+'Haftpflichtversicherung':'Liability insurance','Hausratversicherung':'Home contents insurance','Nebenkosten-Nachzahlung':'Utility bill top-up','Strom-Nachzahlung':'Electricity top-up','Amazon Prime':'Amazon Prime',
+'ADAC / Automobilclub':'Roadside assistance club','Kontoführung / Kreditkarte':'Bank / credit card fees','Lohnsteuerhilfe / Steuerberater':'Tax advisor','Weihnachtsgeschenke':'Christmas presents','Geburtstage':'Birthdays',
+'Zahnreinigung':'Dental cleaning','Urlaub':'Holiday','Handy-Vertrag':'Phone contract','Streaming (Netflix, Spotify …)':'Streaming (Netflix, Spotify …)','iCloud / Cloud-Speicher':'iCloud / cloud storage',
+'Version 1.0':'Version 1.0','Sync':'Sync','Token':'Token','OK':'OK','Miete':'Rent','Dispo':'Overdraft','Leasing':'Leasing','Kindergeld':'Child benefit'
+};
+const I18N_RULES=[
+[/^Das Geld ist echt weg \(wahrscheinlich im Dispo\)\. Kiko zieht es deshalb vom (\S+) ab, damit die Zahlen ehrlich bleiben\.$/,'That money is really gone (probably into the overdraft). So Kiko takes it off $1 to keep the numbers honest.'],
+[/ · Rate deckt Zinsen nicht/,' · payment doesn’t cover interest'],
+[/^vierteljährlich, jährlich … · diesen Monat fällig: (.+)$/,'quarterly, yearly … · due this month: $1'],
+[/(^|· )(monatlich|vierteljährlich|halbjährlich|jährlich|einmalig)(?= ·|$)/g,(m,a,b)=>a+I18N_EXACT[b]],
+[/(^|· )alle 2 Jahre(?= ·|$)/g,'$1every 2 years'],[/(^|· )alle (\d+) Monate(?= ·|$)/g,'$1every $2 months'],
+[/ · nächste: /,' · next: '],
+[/^Noch verfügbar im (\S+)$/,'Still available in $1'],[/^Über Plan im (\S+)$/,'Over budget in $1'],
+[/^≈ (.+) pro Tag · noch (\d+) Tage?$/,'≈ $1 per day · $2 days left'],[/^(.+) von (.+) frei verfügbarem Geld ausgegeben$/,'$1 of $2 free money spent'],
+[/^Kiko ist (\w+)$/,'Kiko is $1'],[/eingegangen, (.+) feste Einnahmen erwartet/,'received, $1 regular income expected'],[/ eingegangen /,' received '],
+[/ · in (\d+) Tagen$/,' · in $1 days'],[/ · heute$/,' · today'],[/ · morgen$/,' · tomorrow'],
+[/^nächste: /,'next: '],[/ · endet /,' · ends '],[/ · für Alle$/,' · for everyone'],[/ · für /,' · for '],[/^für Alle$/,'for everyone'],
+[/\/Monat/g,'/month'],[/ Zinsen\/month/,' interest/month'],[/^davon (.+) monatlich \+ (.+) Rücklage für seltenere Kosten$/,'of which $1 monthly + $2 reserve for irregular costs'],
+[/^Im (\S+) wart ihr (.+) drüber$/,'You were $2 over budget in $1'],[/^vom (\S+) ab, damit die Zahlen ehrlich bleiben\.$/,'$1 so the numbers stay honest.'],
+[/^(.+) übrig im (\S+)! 🎉$/,'$1 left over in $2! 🎉'],[/^In den (\S+) mitnehmen$/,'Carry over into $1'],[/^⤴️ In den (\S+) mitnehmen$/,'⤴️ Carry over into $1'],[/^🏦 (.+) tilgen$/,'🏦 Pay off $1'],
+[/^spart ca\. (.+) Zinsen pro Jahr · Kikos Tipp$/,'saves about $1 interest per year · Kiko’s tip'],[/^Übertrag aus (\S+)$/,'Carried over from $1'],
+[/^💶 Gehalt für (\S+) eintragen$/,'💶 Enter salary for $1'],[/^Gehalt für (.+) fehlt$/,'Salary for $1 is missing'],
+[/^Trag ein, was wirklich auf dem Konto gelandet ist\. Dann rechnet die App für (\S+) mit echtem Geld statt mit einer Schätzung\.$/,'Enter what actually landed in the account. Then the app calculates $1 with real money instead of a guess.'],
+[/^(.+) über Plan$/,'$1 over budget'],[/^(\d+) % sind fest verplant$/,'$1 % is already committed'],[/^Nur noch (.+) pro Tag\./,'Only $1 per day left.'],
+[/^Rücklage: (.+) pro Monat zur Seite$/,'Reserve: put $1 aside per month'],
+[/^Die App hält das Geld schon für euch zurück – einfach nicht ausgeben\. /,'The app already holds this money back for you – just don’t spend it. '],
+[/Solange ihr im Dispo seid, lasst es auf dem Girokonto: das spart Dispo-Zinsen\. Ein Extra-Konto lohnt sich erst danach\./,'While you’re in the overdraft, leave it in the current account: that saves overdraft interest. A separate account only makes sense after that.'],
+[/Am besten per Dauerauftrag auf ein Extra-Konto \(z\. B\. Tagesgeld\), damit es nicht aus Versehen weg ist\./,'Best set up a standing order to a separate savings account so it doesn’t get spent by accident.'],
+[/ Nächste: (.+) am (\S+) \((.+)\)\./,' Next: $1 on $2 ($3).'],
+[/^Teuerste Schuld zuerst: (.+) \((.+) %\)$/,'Most expensive debt first: $1 ($2 %)'],
+[/^Deine Schulden kosten zusammen ca\. (.+) Zinsen pro Monat\. Jeder Extra-Euro bringt am meisten, wenn er auf den höchsten Zinssatz geht\.$/,'Your debts cost about $1 interest per month in total. Every extra euro does the most on the highest interest rate.'],
+[/^Dispo: (.+) Zinsen im Monat$/,'Overdraft: $1 interest per month'],
+[/^(.+) fällt nach (.+) weg$/,'$1 ends after $2'],
+[/^Wenn ihr die (.+) danach direkt zusätzlich auf (.+) zahlt: schuldenfrei in ca\. (\d+) statt (\d+) Monaten und rund (.+) weniger Zinsen\.$/,'If you pay the $1 extra onto $2 afterwards: debt-free in about $3 instead of $4 months and around $5 less interest.'],
+[/^(.+): Budget überschritten$/,'$1: budget exceeded'],[/^(.+): (\d+) % vom Budget$/,'$1: $2 % of budget'],[/^Noch (.+) übrig\.$/,'$1 left.'],
+[/^Sonst im Schnitt (.+) – du liegst schon (.+) drüber\.$/,'Usually $1 on average – you’re already $2 over.'],
+[/^(\d+) % eurer Ausgaben\. Zweimal die Woche vorkochen und Lieferdienst nur am Wochenende spart schnell 80–150 € im Monat\.$/,'$1 % of your spending. Cooking ahead twice a week and delivery only on weekends quickly saves 80–150 € a month.'],
+[/^(\d+) Kleinkäufe unter 10 €$/,'$1 small purchases under 10 €'],[/^Zusammen (.+)\. Einzeln fällt das nicht auf – in Summe schon\.$/,'Together $1. One by one you don’t notice – in total you do.'],
+[/^Abos & Verträge: (.+) im Jahr$/,'Subscriptions & contracts: $1 per year'],[/^Schulden · /,'Debts · '],
+[/ % Zins/,' % interest'],[/ · Rate /,' · payment '],[/ · frei ca\. /,' · paid off around '],[/ · Rate deckt Zinsen nicht/,' · payment doesn’t cover interest'],[/ · Restschuld eintragen!/,' · enter remaining balance!'],
+[/ Zinsen\/Monat$/,' interest/month'],[/^Vorschläge für /,'Suggestions for '],[/^alle (\d+) Monate$/,'every $1 months'],[/^· alle (\d+) Monate$/,'· every $1 months'],
+[/^· (monatlich|vierteljährlich|halbjährlich|jährlich|einmalig)$/,(m,a)=>'· '+I18N_EXACT[a]],[/^· alle 2 Jahre$/,'· every 2 years'],
+[/^(.+) · (Lebensmittel|Essen & Lieferdienst|Drogerie & Haushalt|Kind|Auto & Tanken|Kleidung|Freizeit|Gesundheit|Geschenke|Hochzeit|Sonstiges|Gehalt|Spesen|Bonus \/ Extra|Erstattung)( · .*)?$/,(m,a,b,c)=>a+' · '+I18N_EXACT[b]+(c||'')],
+[/^(Lebensmittel|Essen & Lieferdienst|Drogerie & Haushalt|Kind|Auto & Tanken|Kleidung|Freizeit|Gesundheit|Geschenke|Hochzeit|Sonstiges|Gehalt|Spesen|Bonus \/ Extra|Erstattung)( · .*)$/,(m,a,b)=>I18N_EXACT[a]+b],
+[/^(\S+) (Lebensmittel|Essen & Lieferdienst|Drogerie & Haushalt|Kind|Auto & Tanken|Kleidung|Freizeit|Gesundheit|Geschenke|Hochzeit|Sonstiges|Gehalt|Spesen|Bonus \/ Extra|Erstattung)$/,(m,a,b)=>a+' '+I18N_EXACT[b]],
+[/^(\S+) (Lebensmittel|Essen & Lieferdienst|Drogerie & Haushalt|Kind|Auto & Tanken|Kleidung|Freizeit|Gesundheit|Geschenke|Hochzeit|Sonstiges)(:.*)$/,(m,a,b,c)=>a+' '+I18N_EXACT[b]+c],
+[/ · eingegangen (\S+)/,' · received $1'],[/^Fehler: /,'Error: '],[/^Synchron ✓/,'In sync ✓'],
+[/^⚪️ Nicht verbunden – Daten nur auf diesem Handy$/,'⚪️ Not connected – data only on this phone'],[/^🟢 Alles synchron – ihr seht alle denselben Stand$/,'🟢 All in sync – everyone sees the same data'],
+[/^🔴 Sync-Problem: /,'🔴 Sync problem: '],[/^🟠 Synchronisiere gerade …$/,'🟠 Syncing …'],
+[/^Gespeichert · noch (.+) frei$/,'Saved · $1 still free'],[/^Hallo (.+)!$/,'Hi $1!'],[/^„(.+)“ löschen\?$/,'Delete “$1”?'],
+[/^(.+): Restschuld jetzt (.+) – überweis die (.+) noch in der Bank!$/,'$1: balance now $2 – remember to transfer the $3 in your bank app!'],
+[/^Überweis die (.+) noch aufs Rücklagen-Konto 🐼$/,'Remember to move the $1 to the reserve 🐼'],[/^(.+) sind im neuen Monat dabei$/,'$1 carried into the new month'],
+[/^Lieferdienst, obwohl nur noch (.+) pro Tag drin sind\? Ernsthaft\?$/,'Delivery, with only $1 per day left? Seriously?'],
+[/^Das sind (\d+) Tagesbudgets auf einmal! Musste das sein\?$/,'That’s $1 days of budget in one go! Was that necessary?'],
+[/^Einkauf um (\d+) Uhr nachts\? Nachts kauft man nur Quatsch\.$/,'Shopping at $1 at night? Night shopping is always nonsense.'],
+[/^Ihr seid (.+) drüber! Ab jetzt nur noch Nudeln mit Ketchup\. 😠$/,'You’re $1 over! Pasta with ketchup from now on. 😠'],
+[/^Kiko schwitzt… nur noch (.+) pro Tag\.$/,'Kiko is sweating… only $1 per day left.'],
+[/^Noch keine Buchungen( von (.+))? im (.+)\.$/,(m,a,b,c)=>'No entries'+(b?' from '+b:'')+' in '+c+'.'],[/^Tippe unten auf \+\.$/,'Tap + below.'],
+[/^Nichts in den nächsten 45 Tagen\.$/,'Nothing in the next 45 days.'],[/^(\d+) Buchungen$/,'$1 entries'],
+[/^Hat nicht geklappt: /,'Didn’t work: '],[/^GitHub antwortet /,'GitHub responded '],[/^Speichern fehlgeschlagen \(/,'Saving failed ('],
+[/^Kein Schreibrecht – Token braucht „Contents: Read and write“ für dieses Repo$/,'No write access – token needs “Contents: Read and write” for this repo'],
+[/^Das Daten-Repo ist ÖFFENTLICH! Stell es auf privat, bevor du Daten speicherst\.$/,'The data repo is PUBLIC! Make it private before saving data.'],
+[/^Code kopieren, auf dem anderen Handy unter ⚙︎ → „Code einfügen“\. Der Code enthält den Token – nur privat weitergeben \(z\. B\. AirDrop\), nicht posten\.$/,'Copy the code and on the other phone go to ⚙︎ → “Paste code”. The code contains the token – only share it privately (e.g. AirDrop), never post it.'],
+[/^Tipp: Plane mit/,'Tip: plan with'],[/^Verbindungscode/,'Connection code']
+];
+function trStr(t){if(!EN()||!t||!/[A-Za-zÄÖÜäöüß]/.test(t))return t;const k=t.trim();if(I18N_EXACT[k]!=null)return t.replace(k,I18N_EXACT[k]);let o=t;for(const[re,rep]of I18N_RULES)o=o.replace(re,rep);return o}
+function trNode(n){if(!EN())return;if(n.nodeType===3){const v=trStr(n.nodeValue);if(v!==n.nodeValue)n.nodeValue=v;return}
+  if(n.nodeType!==1||n.tagName==='SCRIPT'||n.tagName==='STYLE'||n.tagName==='TEXTAREA')return;
+  for(const a of['placeholder','aria-label','title']){if(n.hasAttribute&&n.hasAttribute(a)){const v=trStr(n.getAttribute(a));if(v!==n.getAttribute(a))n.setAttribute(a,v)}}
+  if(n.tagName==='OPTION'){const v=trStr(n.textContent);if(v!==n.textContent)n.textContent=v;return}
+  for(const c of n.childNodes)trNode(c)}
+const _mo=new MutationObserver(ms=>{if(!EN())return;for(const m of ms){if(m.type==='characterData')trNode(m.target);else m.addedNodes.forEach(trNode)}});
+_mo.observe(document.documentElement,{childList:true,subtree:true,characterData:true});
+const _conf=window.confirm.bind(window);window.confirm=t=>_conf(trStr(t));
+function setLang(l){cfg.lang=l;saveCfg();MONTHS=EN()?MONTHS_EN:MONTHS_DE;document.documentElement.lang=l;const x=mySub();if(x)upsert('subs',{...x,lang:l});location.reload()}
 /* ---------- UI-Helfer ---------- */
 let toastT;function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),2400)}
 function openSheet(html){$('#sheetCard').innerHTML='<button class="xbtn" data-act="close" aria-label="Schließen">✕</button>'+html;$('#sheet').classList.remove('hidden');return $('#sheetCard')}
@@ -400,7 +557,7 @@ function row({ic,t,s,a,cls='',act='',id='',extra=''}){return `<div class="row ${
 /* ---------- Ansichten ---------- */
 function render(){
   if(QUICK)return;_cc={};
-  $('#mlabel').textContent=monthName(curMonth);
+  $('#mlabel').textContent=monthName(curMonth);const pb=document.querySelector('[data-act="prevM"]');if(pb)pb.style.visibility=curMonth<=startMonth()?'hidden':'';
   document.querySelectorAll('nav [data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
   $('#view').innerHTML=({home:vHome,list:vList,fix:vFix,tips:vTips,settings:vSettings}[view]||vHome)();
   setSync(syncState,syncMsg);updBell();
@@ -409,15 +566,17 @@ function render(){
 
 function vHome(){
   const c=calc(curMonth);let h='';
-  if(!data.settings.income&&!live(data.recurring).length&&!live(data.expenses).length)h+=`<section class="card"><h2>Willkommen 👋</h2><p style="margin:0 0 10px">So legst du los:</p><ol style="margin:0 0 12px;padding-left:20px"><li>⚙︎ → Netto-Gehalt eintragen</li><li>„Fixkosten“ → alles, was regelmäßig abgeht (auch jährlich!)</li><li>⚙︎ → mit GitHub verbinden, damit ihr beide denselben Stand habt</li></ol><button class="btn" data-act="nav" data-v="settings">Zu den Einstellungen</button></section>`;
+  if(!live(data.incomes).length&&!live(data.recurring).length&&!live(data.expenses).length)h+=`<section class="card"><h2>Willkommen 👋</h2><p style="margin:0 0 10px">So legst du los:</p><ol style="margin:0 0 12px;padding-left:20px"><li>+ → Einnahme → Gehalt eintragen</li><li>„Fixkosten“ → alles, was regelmäßig abgeht (auch jährlich!)</li><li>⚙︎ → mit GitHub verbinden, damit ihr beide denselben Stand habt</li></ol><button class="btn" data-act="nav" data-v="settings">Zu den Einstellungen</button></section>`;
   const pct=c.budget>0?Math.min(100,c.spent/c.budget*100):100;
+  if(!c.hasSal){h+=`<section class="card hero warn"><div class="herotop"><div><div class="lbl">${monthName(curMonth)}</div><div class="big" style="font-size:28px;line-height:1.15">Noch kein Gehalt eingetragen</div><div class="sub" style="margin-top:6px">Ohne echtes Gehalt kann Kiko nicht sagen, was noch drin ist.</div></div><div class="moni worried">${moniSVG('worried',80)}</div></div>
+    <button class="btn" style="margin-top:14px;background:#fff;color:#2b2140" data-act="addSal" data-m="${curMonth}">💶 Gehalt für ${MONTHS[+curMonth.slice(5)-1]} eintragen</button></section>`}else{
   const[md,say]=moniState(c);const hcls=md==='angry'?'bad':md==='worried'?'warn':'';
   h+=`<section class="card hero ${hcls}"><div class="herotop"><div><div class="lbl">${c.avail<0?'Über Plan':'Noch verfügbar'} im ${MONTHS[+curMonth.slice(5)-1]}</div><div class="big">${eur(c.avail)}</div>
   ${c.daysLeft>0&&c.avail>0?`<div class="sub">≈ ${eur(c.avail/c.daysLeft)} pro Tag · noch ${c.daysLeft} ${c.daysLeft===1?'Tag':'Tage'}</div>`:''}</div><div class="moni ${md}" data-act="nav" data-v="tips">${moniSVG(md,80)}</div></div>
   <div class="bubble">${esc(say)}</div>
-  <div class="bar"><i style="width:${pct}%"></i></div><div class="sub">${eur(c.spent)} von ${eur(c.budget)} frei verfügbarem Geld ausgegeben</div></section>`;
+  <div class="bar"><i style="width:${pct}%"></i></div><div class="sub">${eur(c.spent)} von ${eur(c.budget)} frei verfügbarem Geld ausgegeben</div></section>`}
   h+=`<section class="card"><h2>So rechnet sich das</h2>
-  ${row({ic:'💶',t:'Einnahmen',s:c.incomePlanned>0?(c.incomeActual>0?`${eur(c.incomeActual)} eingegangen, ${eur(c.incomePlanned)} noch erwartet`:'Schätzung – echtes Gehalt über + eintragen'):'alles eingegangen ✓',a:`<span class="pos">${eur(c.income)}</span>`})}
+  ${row({ic:'💶',t:'Einnahmen',s:!c.hasSal?'Gehalt fehlt noch':c.incomePlanned>0?`${eur(c.incomeActual)} eingegangen, ${eur(c.incomePlanned)} feste Einnahmen erwartet`:'alles eingegangen ✓',a:`<span class="pos">${eur(c.income)}</span>`})}
   ${c.carry?row({ic:c.carry<0?'⤵️':'⤴️',t:`Übertrag aus ${MONTHS[+ymOf(mi(curMonth)-1).slice(5)-1]}`,s:c.carry<0?'letzten Monat drüber – wird abgezogen':'mitgenommen',a:`<span class="${c.carry<0?'':'pos'}">${c.carry<0?'− ':'+ '}${eur(Math.abs(c.carry))}</span>`}):''}
   ${row({ic:'↻',t:'Monatliche Fixkosten',a:'− '+eur(c.fixed),act:'nav',extra:'data-v="fix"'})}
   ${c.reserve?row({ic:'🏦',t:'Rücklage für seltene Kosten',s:'vierteljährlich, jährlich …'+(c.dueRare?` · diesen Monat fällig: ${eur(c.dueRare)}`:''),a:'− '+eur(c.reserve)}):''}
@@ -431,8 +590,6 @@ function vHome(){
   const cs=Object.entries(c.byCat).sort((a,b)=>b[1]-a[1]);
   if(cs.length){const max=cs[0][1];h+=`<section class="card"><h2>Wofür ging’s raus</h2>${cs.map(([k,v])=>{const lim=+(cats().find(x=>x[1]===k)||[])[2]||0;const over=lim&&v>lim;
     return `<div style="margin:8px 0"><div style="display:flex;justify-content:space-between;font-size:14px"><span>${catIcon(k)} ${esc(k)}</span><span>${eur(v)}${lim?` <span class="mini">/ ${eur0(lim)}</span>`:''}</span></div><div class="bar ${over?'bad':''}" style="margin:5px 0 0;height:8px;--cc:${catColor(k)}"><i style="width:${Math.min(100,(lim?v/lim:v/max)*100)}%"></i></div></div>`}).join('')}</section>`}
-  const T=tips().filter(t=>t[0]).slice(0,2);
-  if(T.length)h+=T.map(tipHTML).join('')+`<button class="btn ghost" data-act="nav" data-v="tips" style="margin-bottom:12px">Alle Spar-Tipps ansehen</button>`;
   return h}
 function claudeText(){const m=curMonth,c=calc(m);const L=live(data.recurring);const f=x=>eur(x);
   const ex=c.exp.slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -458,7 +615,7 @@ function vList(){
   h+=`<section class="card"><div class="two" style="margin:0"><div><div class="mini">Ausgaben${listWho?' · '+esc(listWho):''}</div><div style="font-size:22px;font-weight:700">${eur(sum(F(ex)))}</div></div><div><div class="mini">Einnahmen (gebucht)</div><div style="font-size:22px;font-weight:700" class="pos">${eur(sum(F(inc)))}</div></div></div></section>`;
   if(!all.length)return h+`<div class="empty">Noch keine Buchungen${listWho?' von '+esc(listWho):''} im ${monthName(m)}.<br>Tippe unten auf +.</div>`;
   let day='';h+='<section class="card" style="padding-top:6px">';
-  for(const e of all){if(e.date!==day){day=e.date;const wd=new Date(day+'T12:00').toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'});h+=`<div class="day">${wd}</div>`}
+  for(const e of all){if(e.date!==day){day=e.date;const wd=new Date(day+'T12:00').toLocaleDateString(EN()?'en-GB':'de-DE',{weekday:'long',day:'numeric',month:'long'});h+=`<div class="day">${wd}</div>`}
     if(e._t==='in')h+=row({ic:(inSources().find(s=>s[1]===e.source)||['💰'])[0],t:esc(e.note||e.source),s:esc(e.source)+(e.forMonth&&e.forMonth!==e.date.slice(0,7)?` · eingegangen ${fmtDate(e.date)}`:'')+(e.who?' · '+esc(e.who):''),a:`<span class="pos">+ ${eur(e.amount)}</span>`,act:'editIn',id:e.id});
     else h+=row({ic:catIcon(e.cat),extra:`style="--icb:${tint(catColor(e.cat))}"`,t:esc(e.note||e.cat),s:esc(e.cat)+(e.who?' · '+esc(e.who):''),a:'− '+eur(e.amount),act:'editExp',id:e.id})}
   return h+'</section>'}
@@ -498,13 +655,12 @@ function vTips(){
 
 function vSettings(){
   const s=data.settings;
-  return `<section class="card"><h2>Personen</h2><label class="f">Wer nutzt die App? (mit Komma trennen)<input id="sPeople" value="${esc(people().join(', '))}" placeholder="z. B. Anna, Ben"></label>
+  return `<section class="card"><h2>🌐 Sprache / Language</h2><div class="seg" style="margin:0"><button data-act="lang" data-l="de" class="${!EN()?'on':''}">🇩🇪 Deutsch</button><button data-act="lang" data-l="en" class="${EN()?'on':''}">🇬🇧 English</button></div><div class="hint" style="margin:8px 0 0">${EN()?'Only for this phone.':'Gilt nur für dieses Handy.'}</div></section>
+  <section class="card"><h2>Personen</h2><label class="f">Wer nutzt die App? (mit Komma trennen)<input id="sPeople" value="${esc(people().join(', '))}" placeholder="z. B. Anna, Ben"></label>
   <label class="f">Wer bist du auf diesem Gerät?<select id="sMe">${['',...people()].map(p=>`<option value="${esc(p)}" ${p===cfg.me?'selected':''}>${p?esc(p):'– bitte wählen –'}</option>`).join('')}</select></label><label class="f">Weitere Familienmitglieder für Fixkosten (mit Komma)<input id="sExtra" value="${esc((data.settings.extraMembers||[]).join(', '))}" placeholder="z. B. Kind"></label><div class="hint">Damit du bei Fixkosten einstellen kannst, zu wem sie gehören.</div>
   <div class="hint">Neue Buchungen laufen automatisch auf dich. Beim Eintragen kannst du trotzdem umschalten, z. B. wenn du etwas für die andere Person einträgst.</div></section>
   <section class="card"><h2>🔔 Benachrichtigungen</h2><div class="row" style="border:0;padding:0"><div class="mid"><div class="t">Bei neuen Buchungen der anderen Person</div><div class="s">${pushPossible()?'Gilt nur für dieses Handy. Auch über die 🔔 oben ein- und ausschaltbar.':'Nur in der App vom Home-Bildschirm möglich (iOS 16.4+).'}</div></div><label class="sw"><input type="checkbox" id="sPush" ${pushOn()?'checked':''}><span></span></label></div></section>
   <section class="card"><h2>Planung</h2>
-  <label class="f">Netto-Gehalt pro Monat (geplant)<input id="sInc" inputmode="decimal" value="${s.income?String(s.income).replace('.',','):''}" placeholder="z. B. 2900"></label>
-  <div class="hint">Tipp: Plane mit dem <b>niedrigsten</b> Gehalt der letzten Monate. Wenn mehr kommt, trägst du die echte Summe über „+ Einnahme → Gehalt“ ein – die ersetzt dann den Plan.</div>
   <label class="f">Sparen / Extra-Tilgung pro Monat<input id="sGoal" inputmode="decimal" value="${s.savingsGoal?String(s.savingsGoal).replace('.',','):''}" placeholder="0"></label>
   <div class="hint">Wird jeden Monat vom frei verfügbaren Geld abgezogen.</div></section>
   <section class="card"><h2>Kategorien & Budgets</h2><div class="hint" style="margin:0 0 8px">Eine pro Zeile: <b>Emoji Name | Budget</b> (Budget optional)</div>
@@ -526,7 +682,6 @@ function mountSettings(){
   $('#sMe').onchange=e=>{cfg.me=e.target.value;saveCfg();const x=mySub();if(x)upsert('subs',{...x,who:cfg.me});toast('Gespeichert')};
   $('#sExtra').onchange=e=>{setSettings({extraMembers:[...new Set(e.target.value.split(',').map(x=>x.trim()).filter(Boolean))]});toast('Gespeichert')};
   $('#sPeople').onchange=e=>{const p=[...new Set(e.target.value.split(',').map(x=>x.trim()).filter(Boolean))];setSettings({people:p});if(!cfg.me&&p.length){cfg.me=p[0];saveCfg()}toast('Gespeichert')};
-  $('#sInc').onchange=e=>{setSettings({income:num(e.target.value)});toast('Gespeichert')};
   $('#sGoal').onchange=e=>{setSettings({savingsGoal:num(e.target.value)});toast('Gespeichert')};
   $('#saveCats').onclick=()=>{const c=$('#sCats').value.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{const[left,lim]=l.split('|');const m=left.trim().match(/^([^\p{L}\p{N}\s]+)\s*(.+)$/u);return[m?m[1]:'•',(m?m[2]:left).trim(),lim?String(num(lim)||''):'']});if(!c.length)return;setSettings({cats:c});toast('Kategorien gespeichert')};
   ['cOwner','cRepo','cTok'].forEach(id=>$('#'+id).addEventListener('input',e=>{e.target.classList.remove('missing');const n=e.target.parentElement.nextElementSibling;if(n&&n.classList.contains('misstxt'))n.remove()}));
@@ -553,7 +708,7 @@ function entryForm(root,{type='out',id=null,pre={}},onDone){
     <div class="chips ${IN?'in':''}" id="cats">${opts.map(([i,n])=>`<button class="chip ${n===st.cat?'on':''}" style="--cc:${IN?'var(--in)':catColor(n)}" data-cat="${esc(n)}">${i} ${esc(n)}</button>`).join('')}</div>
     ${people().length>1?`<div class="seg" id="who" style="margin-bottom:10px">${people().map(p=>`<button data-who="${esc(p)}" class="${p===who?'on':''}">${esc(p)}</button>`).join('')}</div>`:''}
     <div class="pad" id="pad">${['1','2','3','4','5','6','7','8','9',',','0','⌫'].map(k=>`<button data-k="${k}">${k}</button>`).join('')}</div>
-    ${IN?`<div class="mini" style="margin:0 0 4px">Gilt für welchen Monat?</div><div class="seg in" id="forM" style="margin-bottom:10px">${[-1,0,1].map(o=>{const fm=ymOf(mi(todayISO().slice(0,7))+o);return `<button data-for="${fm}" class="${fm===st.forMonth?'on':''}">${MONTHS[+fm.slice(5)-1]}</button>`}).join('')}</div>`:''}
+    ${IN?`<div class="mini" style="margin:0 0 4px">Gilt für welchen Monat?</div><div class="seg in" id="forM" style="margin-bottom:10px">${[-1,0,1].map(o=>ymOf(mi(todayISO().slice(0,7))+o)).filter(fm=>fm>=startMonth()||fm===st.forMonth).map(fm=>{return `<button data-for="${fm}" class="${fm===st.forMonth?'on':''}">${MONTHS[+fm.slice(5)-1]}</button>`}).join('')}</div>`:''}
     <div class="two"><input class="inp" id="note" placeholder="Notiz (optional)" value="${esc(rec?.note||pre.note||'')}"><input class="inp" id="date" type="date" value="${rec?rec.date:todayISO()}" style="flex:0 0 150px"></div>
     <div class="btns">${isEdit?'<button class="btn ghost danger" id="del">Löschen</button>':''}<button class="btn ${IN?'in':''}" id="save">${IN?'Einnahme speichern':'Speichern'}</button></div>`;
     upd()};
@@ -621,10 +776,11 @@ function openDebt(id){
 /* ---------- Aktionen ---------- */
 const ACT={
   bell:()=>setPush(!pushOn()),
-  syncInfo:()=>toast(({ok:'🟢 Alles synchron – Marifel und du seht denselben Stand',busy:'🟠 Synchronisiere gerade …',err:'🔴 Sync-Problem: '+syncMsg,local:'⚪️ Nicht verbunden – Daten nur auf diesem Handy'})[syncState]),
+  lang:d=>setLang(d.l),
+  syncInfo:()=>toast(({ok:'🟢 Alles synchron – ihr seht alle denselben Stand',busy:'🟠 Synchronisiere gerade …',err:'🔴 Sync-Problem: '+syncMsg,local:'⚪️ Nicht verbunden – Daten nur auf diesem Handy'})[syncState]),
   who:d=>{listWho=d.p||'';render()},
   nav:d=>{view=d.v;window.scrollTo(0,0);render()},
-  prevM:()=>{curMonth=ymOf(mi(curMonth)-1);render()},
+  prevM:()=>{if(curMonth<=startMonth()){toast('Davor gibt’s noch keine Daten 🐼');return}curMonth=ymOf(mi(curMonth)-1);render()},
   nextM:()=>{curMonth=ymOf(mi(curMonth)+1);render()},
   add:d=>openEntry(d.t||'out'),
   editExp:d=>openEntry('out',d.id),
@@ -664,11 +820,12 @@ function quickScreen(pre={}){_cc={};
     $('#qMore').onclick=()=>quickScreen();const upd=()=>{const e=$('#qSync');if(e)e.textContent=syncText()};upd();setTimeout(upd,1500);setTimeout(upd,4000)})}
 
 function askSalary(){
-  const m=salaryDueMonth();if(!m||!data.settings.income&&!live(data.incomes).length&&!live(data.recurring).length)return;
+  const m=salaryDueMonth();if(!m||!live(data.incomes).length&&!live(data.recurring).length&&!live(data.expenses).length)return;
   if(hasSalary(m)||ls('fin.salAsk')===todayISO()||!$('#sheet').classList.contains('hidden'))return;
   openSheet(`<div style="text-align:center"><div class="moni happy" style="display:inline-block">${moniSVG('happy',96)}</div>
   <h3 style="margin-top:6px">Ist dein Gehalt schon da? 💶</h3><p class="sub" style="margin:0 0 14px">Trag ein, was wirklich auf dem Konto gelandet ist. Dann rechnet die App für ${MONTHS[+m.slice(5)-1]} mit echtem Geld statt mit einer Schätzung.</p></div>
   <div class="btns"><button class="btn ghost" data-act="salLater">Noch nicht</button><button class="btn in" data-act="salNow" data-m="${m}">Jetzt eintragen</button></div>`)}
+ACT.addSal=d=>openEntry('in',null,{cat:'Gehalt',forMonth:d.m});
 ACT.salLater=()=>{ls('fin.salAsk',todayISO());closeSheet();toast('Okay, Kiko fragt morgen nochmal 🐼')};
 ACT.salNow=d=>{ls('fin.salAsk',todayISO());closeSheet();openEntry('in',null,{cat:'Gehalt',forMonth:d.m})};
 function askCarry(){
@@ -686,10 +843,10 @@ ACT.carryPick=d=>{const p=d.p,a=calc(p).avail;
   else if(d.c==='reserve')toast(`Überweis die ${eur(a)} noch aufs Rücklagen-Konto 🐼`);
   else if(d.c==='carry')toast(`${eur(a)} sind im neuen Monat dabei`);
   closeSheet()};
-function askMe(){if(cfg.me||people().length<2||!$('#sheet').classList.contains('hidden'))return;openSheet(`<h3>Wer bist du? 👋</h3><p class="sub">Damit deine Buchungen deinen Namen bekommen. Kannst du später unter ⚙︎ ändern.</p><div class="btns" style="margin-top:14px">${people().map(p=>`<button class="btn" data-act="setMe" data-p="${esc(p)}">${esc(p)}</button>`).join('')}</div>`)}
+function askMe(){if(cfg.me||people().length<2||!$('#sheet').classList.contains('hidden'))return;openSheet(`<h3>Wer bist du? 👋</h3><p class="sub">Damit deine Buchungen deinen Namen bekommen. Kannst du später unter ⚙︎ ändern.</p><div class="seg" style="margin:12px 0 0"><button data-act="lang" data-l="de" class="${!EN()?'on':''}">🇩🇪 Deutsch</button><button data-act="lang" data-l="en" class="${EN()?'on':''}">🇬🇧 English</button></div><div class="btns" style="margin-top:14px">${people().map(p=>`<button class="btn" data-act="setMe" data-p="${esc(p)}">${esc(p)}</button>`).join('')}</div>`)}
 ACT.setMe=d=>{cfg.me=d.p;saveCfg();closeSheet();toast('Hallo '+d.p+'!');render()};
 /* ---------- Start ---------- */
-(function init(){
+(function init(){document.documentElement.lang=cfg.lang||'de';trNode(document.body);
   const h=location.hash;
   if(h.startsWith('#setup=')){const ok=applyCode(decodeURIComponent(h.slice(7)));history.replaceState(null,'',location.pathname+location.search);setTimeout(()=>toast(ok?'Mit GitHub verbunden ✓':'Setup-Link ungültig'),300)}
   const q=new URLSearchParams(location.search);
