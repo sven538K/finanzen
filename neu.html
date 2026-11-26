@@ -95,6 +95,18 @@ nav .plus:active{transform:scale(.9)}
 .sheet-card{position:relative;background:var(--card);width:100%;max-width:640px;max-height:92vh;overflow:auto;border-radius:22px 22px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));animation:up .18s ease-out}
 .sheet-card .btns{position:sticky;bottom:calc(-18px - env(safe-area-inset-bottom));z-index:2;background:var(--card);margin:0 -16px calc(-18px - env(safe-area-inset-bottom));padding:10px 16px calc(18px + env(safe-area-inset-bottom));box-shadow:0 -12px 12px -4px var(--card)}
 @keyframes up{from{transform:translateY(40px);opacity:.4}}
+.sheet-card.entry{display:flex;flex-direction:column;overflow:hidden;max-height:calc(100dvh - env(safe-area-inset-top) - 10px);padding-top:14px}
+.sheet-card.entry>*{flex:none}
+.sheet-card.entry .xbtn{position:absolute;top:14px;right:14px;margin:0;float:none}
+.sheet-card.entry .xbtn+.seg,.sheet-card.entry .xbtn+h3{margin-right:46px}
+.entry .amt{font-size:40px;line-height:1.1;padding:2px 0 8px}
+.entry .chips{gap:5px;margin-bottom:8px}.entry .chip{padding:5px 9px;font-size:13px}
+.entry .bhint{margin:-2px 0 8px;padding:6px 10px}
+.entry .seg{margin-bottom:8px}.entry .seg button{padding:7px}
+.entry .pad{flex:0 1 250px;min-height:136px;grid-template-rows:repeat(4,1fr);gap:6px;margin-bottom:8px}
+.entry .pad button{padding:0;font-size:22px}
+.entry .two{margin-bottom:8px}
+.sheet-card.entry .btns{position:static;margin:0;padding:0;box-shadow:none;background:none}
 .xbtn{position:sticky;top:0;float:right;z-index:2;width:36px;height:36px;border-radius:50%;border:0;background:var(--bg);color:var(--mu);font-size:16px;margin:-6px -4px 0 8px;cursor:pointer}
 .sheet-card h3,.qwrap h3{margin:0 0 10px;font-size:18px}
 label.f{display:block;font-size:13px;color:var(--mu);margin:0 0 10px}
@@ -575,7 +587,7 @@ const _conf=window.confirm.bind(window);window.confirm=t=>_conf(trStr(t));
 function setLang(l){cfg.lang=l;saveCfg();MONTHS=EN()?MONTHS_EN:MONTHS_DE;document.documentElement.lang=l;const x=mySub();if(x)upsert('subs',{...x,lang:l});location.reload()}
 /* ---------- UI-Helfer ---------- */
 let toastT;function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),2400)}
-function openSheet(html){$('#sheetCard').innerHTML='<button class="xbtn" data-act="close" aria-label="Schließen">✕</button>'+html;$('#sheet').classList.remove('hidden');return $('#sheetCard')}
+function openSheet(html){$('#sheetCard').className='sheet-card';$('#sheetCard').innerHTML='<button class="xbtn" data-act="close" aria-label="Schließen">✕</button>'+html;$('#sheet').classList.remove('hidden');return $('#sheetCard')}
 function closeSheet(){$('#sheet').classList.add('hidden');$('#sheetCard').innerHTML=''}
 async function copy(t){try{await navigator.clipboard.writeText(t)}catch(e){const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove()}toast('Kopiert ✓')}
 function row({ic,t,s,a,cls='',act='',id='',extra=''}){return `<div class="row ${act?'tap':''} ${cls}" ${act?`data-act="${act}" data-id="${esc(id)}"`:''} ${extra}><div class="ic">${ic}</div><div class="mid"><div class="t">${t}</div>${s?`<div class="s">${s}</div>`:''}</div><div class="a">${a}</div></div>`}
@@ -776,7 +788,7 @@ function entryForm(root,{type='out',id=null,pre={}},onDone){
       onDone({...base,type:st.type,cat:st.cat})}};
   draw();
   root.onkeydown=null;}
-function openEntry(type,id,pre){const root=openSheet('');entryForm(root,{type,id,pre},r=>{closeSheet();if(r){const bl=r.type==='in'?'':budgetLine(r.date.slice(0,7),r.cat);toast(r.type==='in'?'Einnahme gespeichert ✓':bl?`Gespeichert · ${bl}`:`Gespeichert · noch ${eur(calc(curMonth).avail)} frei`)}})}
+function openEntry(type,id,pre){const root=openSheet('');root.classList.add('entry');entryForm(root,{type,id,pre},r=>{closeSheet();if(r){const bl=r.type==='in'?'':budgetLine(r.date.slice(0,7),r.cat);toast(r.type==='in'?'Einnahme gespeichert ✓':bl?`Gespeichert · ${bl}`:`Gespeichert · noch ${eur(calc(curMonth).avail)} frei`)}})}
 
 function openRec(id,pre={}){
   const r=id?data.recurring.find(x=>x.id===id):null;
