@@ -143,6 +143,56 @@ textarea{min-height:160px;font-family:ui-monospace,Menlo,monospace!important;fon
 .sw{position:relative;width:52px;height:32px;flex:none}.sw input{opacity:0;width:0;height:0}.sw span{position:absolute;inset:0;background:var(--ln);border-radius:20px;transition:.2s}.sw span:before{content:'';position:absolute;left:3px;top:3px;width:26px;height:26px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}.sw input:checked+span{background:#22a06b}.sw input:checked+span:before{transform:translateX(20px)}
 .shake{animation:sh .3s}
 @keyframes sh{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+/* ===== Große Bildschirme (z. B. iPhone Duo). Normale iPhones sind quer höchstens 440px hoch und hoch höchstens 440px breit – für sie greift nichts davon. ===== */
+/* Kopfzeile einzeilig, sobald Platz da ist (spart Höhe im Querformat) */
+@media (min-width:600px) and (min-height:441px){
+  header{display:flex;align-items:center;gap:4px;padding:6px max(14px,env(safe-area-inset-right)) 6px max(14px,env(safe-area-inset-left))}
+  header>.hrow:first-child{display:contents}
+  header h1{flex:none;order:0}
+  header .mrow{order:1;flex:1;margin:0}
+  header .ibtn{order:2}
+}
+/* Quer mit wenig Höhe (z. B. Duo zugeklappt quer): Eintragen links Betrag + Kategorien, rechts Tastenfeld */
+@media (orientation:landscape) and (min-height:441px) and (max-height:499.98px){
+  .sheet-card.entry{max-width:none;height:calc(100dvh - env(safe-area-inset-top) - 8px);max-height:none;padding:12px max(16px,env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+  .qwrap:has(>#pad){max-width:none;height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));padding:12px max(16px,env(safe-area-inset-right)) 12px max(16px,env(safe-area-inset-left))!important}
+  :is(.sheet-card.entry,.qwrap:has(>#pad)){display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);column-gap:20px;
+    grid-template-rows:auto auto minmax(0,auto) auto auto auto auto 1fr auto;
+    grid-template-areas:"ty x" "amt pad" "cats pad" "hint pad" "who pad" "fl pad" "form pad" "sp pad" "note btns"}
+  .qwrap:has(>#pad){grid-template-areas:"ty pad" "amt pad" "cats pad" "hint pad" "who pad" "fl pad" "form pad" "sp pad" "note btns"}
+  .sheet-card.entry>.xbtn{grid-area:x;position:static;justify-self:end;align-self:start;margin:0}
+  :is(.sheet-card.entry,.qwrap:has(>#pad))>:is(h3,.seg:not(#who):not(#forM)){grid-area:ty;margin:0 0 8px}
+  :is(.sheet-card.entry,.qwrap:has(>#pad))>#amt{grid-area:amt;font-size:38px;padding:0 0 6px}
+  :is(.sheet-card.entry,.qwrap:has(>#pad))>#cats{grid-area:cats;min-height:0;overflow:auto;align-content:flex-start;margin:0 0 8px;overscroll-behavior:contain}
+  :is(.sheet-card.entry,.qwrap:has(>#pad))>#bHint{grid-area:hint}
+  :is(.sheet-card.entry,.qwrap:has(>#pad))>#who{grid-area:who;margin:0 0 8px!important}
+  :is(.sheet-card.entry,.qwrap:has(>#pad))>.mini{grid-area:fl}
+  :is(.sheet-card.entry,.qwrap:has(>#pad))>#forM{grid-area:form;margin:0 0 8px!important}
+  :is(.sheet-card.entry,.qwrap:has(>#pad))>.two{grid-area:note;margin:0;align-self:end}
+  :is(.sheet-card.entry,.qwrap:has(>#pad))>#pad{grid-area:pad;min-height:0;height:auto;margin:0 0 8px;grid-template-rows:repeat(4,1fr);gap:7px}
+  :is(.sheet-card.entry,.qwrap:has(>#pad))>.btns{grid-area:btns;align-self:end;position:static;margin:0;padding:0;box-shadow:none;background:none}
+}
+/* Breit und hoch genug (z. B. Duo aufgeklappt): Startseite in Spalten */
+@media (min-width:600px) and (min-height:500px){
+  main.wide{max-width:1180px;padding:4px max(10px,env(safe-area-inset-right)) 20px max(10px,env(safe-area-inset-left))}
+  .cols{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,1fr);gap:10px;align-items:start}
+  .cols .card{padding:14px 13px;margin-bottom:10px}
+  .cols .hero{padding:15px 14px 13px}
+  .cols .hero .lbl,.cols .hero .sub{font-size:13px}
+  .cols .brow .bt{font-size:14px}
+  .cols .hero .big{font-size:32px;letter-spacing:-.8px}
+  .cols .herotop{gap:8px}
+  .cols .moni svg{width:66px;height:66px}
+}
+/* Sehr breit (z. B. Duo aufgeklappt quer): drei Spalten, Fenster schweben mittig */
+@media (min-width:860px) and (min-height:500px){
+  .cols.c3{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,.9fr)}
+  .sheet{align-items:center;padding:20px}
+  .sheet-card{max-width:520px;max-height:calc(100dvh - 40px);border-radius:24px;padding-bottom:18px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+  .sheet-card .btns{bottom:-18px;margin:0 -16px -18px;padding:10px 16px 18px}
+  .sheet-card.entry{max-width:540px;max-height:calc(100dvh - 40px)}
+  @keyframes up{from{transform:scale(.96);opacity:.4}}
+}
 </style>
 </head>
 <body>
@@ -595,16 +645,21 @@ async function copy(t){try{await navigator.clipboard.writeText(t)}catch(e){const
 function row({ic,t,s,a,cls='',act='',id='',extra=''}){return `<div class="row ${act?'tap':''} ${cls}" ${act?`data-act="${act}" data-id="${esc(id)}"`:''} ${extra}><div class="ic">${ic}</div><div class="mid"><div class="t">${t}</div>${s?`<div class="s">${s}</div>`:''}</div><div class="a">${a}</div></div>`}
 
 /* ---------- Ansichten ---------- */
+// Breite Bildschirme (z. B. iPhone Duo aufgeklappt): Startseite in 2 bzw. 3 Spalten. Werte passen zu den @media-Regeln im CSS.
+const MQ2=matchMedia('(min-width:600px) and (min-height:500px)'),MQ3=matchMedia('(min-width:860px) and (min-height:500px)');
+const homeCols=()=>MQ3.matches?3:MQ2.matches?2:1;
+[MQ2,MQ3].forEach(q=>q.addEventListener('change',()=>render()));
 function render(){
   if(QUICK)return;_cc={};
   $('#mlabel').textContent=monthName(curMonth);const pb=document.querySelector('[data-act="prevM"]');if(pb)pb.style.visibility=curMonth<=startMonth()?'hidden':'';
   document.querySelectorAll('nav [data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
-  $('#view').innerHTML=({home:vHome,list:vList,fix:vFix,tips:vTips,settings:vSettings}[view]||vHome)();
+  const lay=view==='home'?homeCols():1;$('#view').classList.toggle('wide',lay>1);
+  $('#view').innerHTML=lay>1?`<div class="cols c${lay}"><div class="col">${vHome(lay===3)}</div><div class="col">${vList()}</div>${lay===3?`<div class="col">${vUpcoming()}</div>`:''}</div>`:({home:vHome,list:vList,fix:vFix,tips:vTips,settings:vSettings}[view]||vHome)();
   setSync(syncState,syncMsg);updBell();
   if(view==='settings')mountSettings();
   if(view==='fix'){$('#fSort').onchange=e=>{fixSort=e.target.value;ls('fin.fixSort',fixSort);render()};$('#fGroup').onchange=e=>{fixGroup=e.target.value;ls('fin.fixGroup',fixGroup);render()}}}
 
-function vHome(){
+function vHome(noUp){
   const c=calc(curMonth);let h='';
   if(!live(data.incomes).length&&!live(data.recurring).length&&!live(data.expenses).length)h+=`<section class="card"><h2>Willkommen 👋</h2><p style="margin:0 0 10px">So legst du los:</p><ol style="margin:0 0 12px;padding-left:20px"><li>+ → Einnahme → Gehalt eintragen</li><li>„Fixkosten“ → alles, was regelmäßig abgeht (auch jährlich!)</li><li>⚙︎ → mit GitHub verbinden, damit ihr beide denselben Stand habt</li></ol><button class="btn" data-act="nav" data-v="settings">Zu den Einstellungen</button></section>`;
   const pct=c.budget>0?Math.min(100,c.spent/c.budget*100):100;
@@ -625,13 +680,15 @@ function vHome(){
   ${c.goal?row({ic:'🎯',t:'Sparen / Extra-Tilgung',a:'− '+eur(c.goal)}):''}
   ${row({ic:'🛍️',t:'Ausgaben bisher',s:people().length>1?people().map(p=>`${esc(p)} ${eur(sum(c.exp.filter(e=>e.who===p)))}`).join(' · '):`${c.exp.length} Buchungen`,a:'− '+eur(c.spent),act:'nav',extra:'data-v="list"'})}
   ${row({ic:'=',t:'<b>Bleibt übrig</b>',a:`<b>${eur(c.avail)}</b>`})}</section>`;
-  const up=upcoming(45);
-  h+=`<section class="card"><h2>Demnächst fällig</h2>${up.length?up.slice(0,8).map(({r,d})=>{const n=ivN(r);const dd=daysUntil(d);
-    return row({ic:n===1?'↻':n===0?'📌':'⚠️',t:esc(r.name)+(n!==1?`<span class="badge">${ivL(r)}</span>`:''),s:`${fmtDate(d)} · ${dd===0?'heute':dd===1?'morgen':'in '+dd+' Tagen'}`,a:eur(r.amount),act:'editRec',id:r.id})}).join(''):'<div class="empty">Nichts in den nächsten 45 Tagen.</div>'}</section>`;
+  if(!noUp)h+=vUpcoming();
   const cs=Object.entries(c.byCat).filter(([k])=>!catBudget(k)).sort((a,b)=>b[1]-a[1]);
   if(cs.length){const max=cs[0][1];h+=`<section class="card"><h2>${cats().some(x=>+x[2]>0)?'Ohne Budget':'Wofür ging’s raus'}</h2>${cs.map(([k,v])=>{const lim=+(cats().find(x=>x[1]===k)||[])[2]||0;const over=lim&&v>lim;
     return `<div style="margin:8px 0"><div style="display:flex;justify-content:space-between;font-size:14px"><span>${catIcon(k)} ${esc(k)}</span><span>${eur(v)}${lim?` <span class="mini">/ ${eur0(lim)}</span>`:''}</span></div><div class="bar ${over?'bad':''}" style="margin:5px 0 0;height:8px;--cc:${catColor(k)}"><i style="width:${Math.min(100,(lim?v/lim:v/max)*100)}%"></i></div></div>`}).join('')}</section>`}
   return h}
+/* Demnächst fällig – eigene Karte, damit sie auf breiten Bildschirmen eine eigene Spalte bekommen kann */
+function vUpcoming(){const up=upcoming(45);
+  return `<section class="card"><h2>Demnächst fällig</h2>${up.length?up.slice(0,8).map(({r,d})=>{const n=ivN(r);const dd=daysUntil(d);
+    return row({ic:n===1?'↻':n===0?'📌':'⚠️',t:esc(r.name)+(n!==1?`<span class="badge">${ivL(r)}</span>`:''),s:`${fmtDate(d)} · ${dd===0?'heute':dd===1?'morgen':'in '+dd+' Tagen'}`,a:eur(r.amount),act:'editRec',id:r.id})}).join(''):'<div class="empty">Nichts in den nächsten 45 Tagen.</div>'}</section>`}
 function budgetCard(c){const B=cats().filter(x=>+x[2]>0);
   if(!B.length)return `<section class="card"><h2>🎯 Budgets</h2><p class="sub" style="margin:0 0 12px">Leg fest, wie viel ihr pro Monat z. B. fürs Essen gehen ausgeben wollt. Jede Ausgabe in der Kategorie wird dann direkt abgezogen.</p><button class="btn" data-act="budgets">Budgets festlegen</button></section>`;
   const tl=B.reduce((s,x)=>s+(+x[2]),0),ts=B.reduce((s,x)=>s+(c.byCat[x[1]]||0),0),cur=curMonth===todayYM();
