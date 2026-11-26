@@ -143,6 +143,10 @@ textarea{min-height:160px;font-family:ui-monospace,Menlo,monospace!important;fon
 .sw{position:relative;width:52px;height:32px;flex:none}.sw input{opacity:0;width:0;height:0}.sw span{position:absolute;inset:0;background:var(--ln);border-radius:20px;transition:.2s}.sw span:before{content:'';position:absolute;left:3px;top:3px;width:26px;height:26px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}.sw input:checked+span{background:#22a06b}.sw input:checked+span:before{transform:translateX(20px)}
 .shake{animation:sh .3s}
 @keyframes sh{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+/* Normale iPhones (kleine Seite des Bildschirms max. 440px, per JS als html.phone markiert): quer nur Hinweis zum Zurückdrehen */
+#rot{display:none}
+@media (orientation:landscape){html.phone #rot{display:flex;position:fixed;inset:0;z-index:50;background:var(--bg);flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:20px}
+  html.phone #rot p{margin:0;font-size:18px;font-weight:700}html.phone #rot .mini{font-weight:400}}
 /* ===== Große Bildschirme (z. B. iPhone Duo). Normale iPhones sind quer höchstens 440px hoch und hoch höchstens 440px breit – für sie greift nichts davon. ===== */
 /* Kopfzeile einzeilig, sobald Platz da ist (spart Höhe im Querformat) */
 @media (min-width:600px) and (min-height:441px){
@@ -213,6 +217,7 @@ textarea{min-height:160px;font-family:ui-monospace,Menlo,monospace!important;fon
 </nav>
 <div id="sheet" class="sheet hidden"><div class="sheet-bg" data-act="close"></div><div class="sheet-card" id="sheetCard"></div></div>
 <div id="toast"></div>
+<div id="rot"><div class="moni" id="rotKiko"></div><p>Dreh dein iPhone wieder hoch 🙃</p><div class="mini">Die App gibt es nur im Hochformat.</div></div>
 <script>window.QUICK=true;</script>
 <script>
 'use strict';
@@ -476,6 +481,7 @@ async function setPush(on){
 function updBell(){const b=$('#bell');if(b)b.classList.toggle('off',!pushOn())}
 /* ---------- Englisch ---------- */
 const I18N_EXACT={
+'Dreh dein iPhone wieder hoch 🙃':'Turn your iPhone back upright 🙃','Die App gibt es nur im Hochformat.':'The app only works in portrait mode.',
 'Sync-Status':'Sync status','Benachrichtigungen':'Notifications','Einstellungen':'Settings','Vormonat':'Previous month','Nächster Monat':'Next month',
 'So rechnet sich das':'How it adds up','Einnahmen':'Income','Monatliche Fixkosten':'Monthly fixed costs','Rücklage für seltene Kosten':'Reserve for irregular costs',
 'vierteljährlich, jährlich …':'quarterly, yearly …','Ausgaben bisher':'Spent so far','Bleibt übrig':'Left over','Demnächst fällig':'Coming up',
@@ -965,7 +971,10 @@ ACT.carryPick=d=>{const p=d.p,a=calc(p).avail;
 function askMe(){if(cfg.me||people().length<2||!$('#sheet').classList.contains('hidden'))return;openSheet(`<h3>Wer bist du? 👋</h3><p class="sub">Damit deine Buchungen deinen Namen bekommen. Kannst du später unter ⚙︎ ändern.</p><div class="seg" style="margin:12px 0 0"><button data-act="lang" data-l="de" class="${!EN()?'on':''}">🇩🇪 Deutsch</button><button data-act="lang" data-l="en" class="${EN()?'on':''}">🇬🇧 English</button></div><div class="btns" style="margin-top:14px">${people().map(p=>`<button class="btn" data-act="setMe" data-p="${esc(p)}">${esc(p)}</button>`).join('')}</div>`)}
 ACT.setMe=d=>{cfg.me=d.p;saveCfg();closeSheet();toast('Hallo '+d.p+'!');render()};
 /* ---------- Start ---------- */
-(function init(){document.documentElement.lang=cfg.lang||'de';trNode(document.body);
+(function init(){document.documentElement.lang=cfg.lang||'de';
+  // Normale iPhones (nicht iPhone Duo / iPad) nur im Hochformat: screen-Maße ändern sich beim Drehen nicht
+  if(Math.min(screen.width,screen.height)<=440&&matchMedia('(pointer:coarse)').matches)document.documentElement.classList.add('phone');
+  $('#rotKiko').innerHTML=moniSVG('worried',96);trNode(document.body);
   const h=location.hash;
   if(h.startsWith('#setup=')){const ok=applyCode(decodeURIComponent(h.slice(7)));history.replaceState(null,'',location.pathname+location.search);setTimeout(()=>toast(ok?'Mit GitHub verbunden ✓':'Setup-Link ungültig'),300)}
   const q=new URLSearchParams(location.search);
