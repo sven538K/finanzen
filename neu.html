@@ -142,6 +142,8 @@ textarea{min-height:160px;font-family:ui-monospace,Menlo,monospace!important;fon
 .code{font-family:ui-monospace,Menlo,monospace;font-size:12px;word-break:break-all;background:var(--bg);padding:8px;border-radius:10px;margin:6px 0}
 .sw{position:relative;width:52px;height:32px;flex:none}.sw input{opacity:0;width:0;height:0}.sw span{position:absolute;inset:0;background:var(--ln);border-radius:20px;transition:.2s}.sw span:before{content:'';position:absolute;left:3px;top:3px;width:26px;height:26px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}.sw input:checked+span{background:#22a06b}.sw input:checked+span:before{transform:translateX(20px)}
 .shake{animation:sh .3s}
+.inbox{border:2px solid color-mix(in srgb,var(--ac) 45%,transparent)}.inbox .row .a{margin-right:2px}
+.ixbtn{flex:none;width:44px;height:44px;margin:-6px -8px -6px 0;border:0;background:none;color:var(--mu);font-size:15px;border-radius:50%;cursor:pointer}.ixbtn:active{background:var(--bg)}
 @keyframes sh{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 /* Normale iPhones (kleine Seite des Bildschirms max. 440px, per JS als html.phone markiert): quer nur Hinweis zum Zurückdrehen */
 #rot{display:none}
@@ -401,9 +403,36 @@ async function sync(){
       if(p.status===404||p.status===403)throw new Error('Kein Schreibrecht – Token braucht „Contents: Read and write“ für dieses Repo');
       throw new Error('Speichern fehlgeschlagen ('+p.status+')')}
     if(!done)throw new Error('Konflikt, versuche es gleich nochmal');
-    ls('fin.lastSync',Date.now());setSync('ok');if(!QUICK){askMe();askCarry();askSalary()}
+    ls('fin.lastSync',Date.now());setSync('ok');if(!QUICK){askMe();askCarry();askSalary();loadInbox()}
   }catch(e){setSync('err',e.message||'Keine Verbindung')}
   syncing=false;if(again){again=false;sync()}}
+/* ---------- Apple-Pay-Eingang ----------
+   Ein Kurzbefehl (Automation „Transaktion“) legt bei jeder Apple-Pay-Zahlung still eine Datei inbox/<name>.json
+   ins Daten-Repo: {"amount":"12,34 €","merchant":"Laden","who":"Name","date":"2026-01-31T12:00:00+01:00"}.
+   Kiko zeigt sie auf der Startseite; man wählt selbst die Kategorie. Gebucht wird mit der festen id „ap-<name>“,
+   so entsteht auch bei zwei Handys keine doppelte Buchung. Danach wird die Datei gelöscht. */
+let inbox=[],inboxBusy=false;
+const inboxDir=()=>`/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/inbox`;
+const inboxId=n=>'ap-'+n.replace(/\.json$/i,'');
+function parseInbox(name,txt){let j={};try{j=JSON.parse(txt)}catch(e){const g=k=>(txt.match(new RegExp('"'+k+'"\\s*:\\s*"([^"]*)"'))||[])[1];j={amount:g('amount'),merchant:g('merchant'),who:g('who'),date:g('date')}}
+  const fd=name.match(/^(\d{4})(\d\d)(\d\d)/);
+  const date=/^\d{4}-\d\d-\d\d/.test(String(j.date||''))?String(j.date).slice(0,10):fd?`${fd[1]}-${fd[2]}-${fd[3]}`:todayISO();
+  return{name,amount:num(j.amount),merchant:String(j.merchant||'').trim(),who:String(j.who||'').trim(),date}}
+function delInbox(f){return api(inboxDir()+'/'+encodeURIComponent(f.name),{method:'DELETE',body:JSON.stringify({message:'Apple-Pay-Zahlung erledigt',sha:f.sha})}).catch(()=>{})}
+async function loadInbox(){if(!hasRemote()||inboxBusy)return;inboxBusy=true;
+  try{const r=await api(inboxDir());
+    if(r.ok){const files=(await r.json()).filter(f=>f.type==='file'&&/\.json$/i.test(f.name));
+      const known=new Set(data.expenses.map(x=>x.id)),next=[];
+      for(const f of files){if(known.has(inboxId(f.name))){delInbox(f);continue}
+        const old=inbox.find(x=>x.name===f.name);if(old){old.sha=f.sha;next.push(old);continue}
+        const g=await api(inboxDir()+'/'+encodeURIComponent(f.name));if(!g.ok)continue;const j=await g.json();
+        next.push({...parseInbox(f.name,b64d(j.content)),sha:j.sha})}
+      const ch=next.map(x=>x.name).join()!==inbox.map(x=>x.name).join();inbox=next;if(ch)render()}
+    else if(r.status===404&&inbox.length){inbox=[];render()}
+  }catch(e){}inboxBusy=false}
+function inboxDone(name){const f=inbox.find(x=>x.name===name);inbox=inbox.filter(x=>x.name!==name);if(f)delInbox(f);render()}
+function inboxCard(){if(!inbox.length)return '';
+  return `<section class="card inbox"><h2>💳 Neu von Apple Pay</h2><p class="mini" style="margin:-4px 0 4px">Antippen und Kategorie wählen.</p>${inbox.map(x=>`<div class="row tap" data-act="inboxBook" data-id="${esc(x.name)}"><div class="ic">💳</div><div class="mid"><div class="t">${esc(x.merchant||'Apple Pay')}</div><div class="s">${fmtDate(x.date)}${x.who?' · '+esc(x.who):''}</div></div><div class="a">− ${eur(x.amount)}</div><button class="ixbtn" data-act="inboxSkip" data-id="${esc(x.name)}" aria-label="Ignorieren">✕</button></div>`).join('')}</section>`}
 async function testConnection(){
   if(!hasRemote()){toast('Bitte Benutzer, Repo und Token eintragen');return}
   setSync('busy');
@@ -481,6 +510,7 @@ async function setPush(on){
 function updBell(){const b=$('#bell');if(b)b.classList.toggle('off',!pushOn())}
 /* ---------- Englisch ---------- */
 const I18N_EXACT={
+'💳 Neu von Apple Pay':'💳 New from Apple Pay','Antippen und Kategorie wählen.':'Tap to choose a category.','Ignorieren':'Ignore','Diese Zahlung ignorieren? Sie wird nicht gebucht.':'Ignore this payment? It won’t be booked.','Zahlung ignoriert':'Payment ignored','Bitte Kategorie wählen':'Please choose a category',
 'Dreh dein iPhone wieder hoch 🙃':'Turn your iPhone back upright 🙃','Die App gibt es nur im Hochformat.':'The app only works in portrait mode.',
 'Sync-Status':'Sync status','Benachrichtigungen':'Notifications','Einstellungen':'Settings','Vormonat':'Previous month','Nächster Monat':'Next month',
 'So rechnet sich das':'How it adds up','Einnahmen':'Income','Monatliche Fixkosten':'Monthly fixed costs','Rücklage für seltene Kosten':'Reserve for irregular costs',
@@ -666,7 +696,7 @@ function render(){
   if(view==='fix'){$('#fSort').onchange=e=>{fixSort=e.target.value;ls('fin.fixSort',fixSort);render()};$('#fGroup').onchange=e=>{fixGroup=e.target.value;ls('fin.fixGroup',fixGroup);render()}}}
 
 function vHome(noUp){
-  const c=calc(curMonth);let h='';
+  const c=calc(curMonth);let h=inboxCard();
   if(!live(data.incomes).length&&!live(data.recurring).length&&!live(data.expenses).length)h+=`<section class="card"><h2>Willkommen 👋</h2><p style="margin:0 0 10px">So legst du los:</p><ol style="margin:0 0 12px;padding-left:20px"><li>+ → Einnahme → Gehalt eintragen</li><li>„Fixkosten“ → alles, was regelmäßig abgeht (auch jährlich!)</li><li>⚙︎ → mit GitHub verbinden, damit ihr beide denselben Stand habt</li></ol><button class="btn" data-act="nav" data-v="settings">Zu den Einstellungen</button></section>`;
   const pct=c.budget>0?Math.min(100,c.spent/c.budget*100):100;
   if(!c.hasSal){h+=`<section class="card hero warn"><div class="herotop"><div><div class="lbl">${monthName(curMonth)}</div><div class="big" style="font-size:28px;line-height:1.15">Noch kein Gehalt eingetragen</div><div class="sub" style="margin-top:6px">Ohne echtes Gehalt kann Kiko nicht sagen, was noch drin ist.</div></div><div class="moni worried">${moniSVG('worried',80)}</div></div>
@@ -814,9 +844,9 @@ function mountSettings(){
 /* ---------- Formulare ---------- */
 function entryForm(root,{type='out',id=null,pre={}},onDone){
   const isEdit=!!id;let rec=id?(data[type==='in'?'incomes':'expenses'].find(x=>x.id===id)):null;
-  let who=rec?.who||cfg.me||people()[0]||'';
+  let who=rec?.who||(pre.who&&(!people().length||people().includes(pre.who))?pre.who:'')||cfg.me||people()[0]||'';
   const st={type,amt:rec?String(rec.amount).replace('.',','):(pre.amt||''),cat:rec?(type==='in'?rec.source:rec.cat):(pre.cat||'')};
-  if(!st.cat)st.cat=type==='in'?'Gehalt':(ls('fin.lastCat')||cats()[0][1]);
+  if(!st.cat&&!pre.pickCat)st.cat=type==='in'?'Gehalt':(ls('fin.lastCat')||cats()[0][1]);
   const defFor=d=>+d.slice(8)>=20?ymOf(mi(d.slice(0,7))+1):d.slice(0,7);
   const autoFor=()=>st.cat==='Gehalt'?defFor(todayISO()):todayISO().slice(0,7);let forTouched=!!(rec?.forMonth||pre.forMonth);
   st.forMonth=rec?.forMonth||pre.forMonth||autoFor();
@@ -828,7 +858,7 @@ function entryForm(root,{type='out',id=null,pre={}},onDone){
     ${people().length>1?`<div class="seg" id="who" style="margin-bottom:10px">${people().map(p=>`<button data-who="${esc(p)}" class="${p===who?'on':''}">${esc(p)}</button>`).join('')}</div>`:''}
     <div class="pad" id="pad">${['1','2','3','4','5','6','7','8','9',',','0','⌫'].map(k=>`<button data-k="${k}">${k}</button>`).join('')}</div>
     ${IN?`<div class="mini" style="margin:0 0 4px">Gilt für welchen Monat?</div><div class="seg in" id="forM" style="margin-bottom:10px">${[-1,0,1].map(o=>ymOf(mi(todayISO().slice(0,7))+o)).filter(fm=>fm>=startMonth()||fm===st.forMonth).map(fm=>{return `<button data-for="${fm}" class="${fm===st.forMonth?'on':''}">${MONTHS[+fm.slice(5)-1]}</button>`}).join('')}</div>`:''}
-    <div class="two"><input class="inp" id="note" placeholder="Notiz (optional)" value="${esc(rec?.note||pre.note||'')}"><input class="inp" id="date" type="date" value="${rec?rec.date:todayISO()}" style="flex:0 0 150px"></div>
+    <div class="two"><input class="inp" id="note" placeholder="Notiz (optional)" value="${esc(rec?.note||pre.note||'')}"><input class="inp" id="date" type="date" value="${rec?rec.date:(pre.date||todayISO())}" style="flex:0 0 150px"></div>
     <div class="btns">${isEdit?'<button class="btn ghost danger" id="del">Löschen</button>':''}<button class="btn ${IN?'in':''}" id="save">${IN?'Einnahme speichern':'Speichern'}</button></div>`;
     const dt=$('#date');if(dt)dt.onchange=updB;upd()};
   const updB=()=>{const el=$('#bHint');if(!el)return;const b=st.type==='in'?null:budgetInfo(($('#date')?.value||todayISO()).slice(0,7),st.cat,rec?.id);
@@ -848,12 +878,13 @@ function entryForm(root,{type='out',id=null,pre={}},onDone){
       st.amt=a;upd();return}
     if(b.id==='del'){if(confirm('Wirklich löschen?')){remove(type==='in'?'incomes':'expenses',id);onDone(null)}return}
     if(b.id==='save'){const amount=num(st.amt);if(!(amount>0)){$('#amt').classList.add('shake');setTimeout(()=>$('#amt')?.classList.remove('shake'),350);toast('Betrag fehlt');return}
-      const base={id:rec?.id||uid(),date:$('#date').value||todayISO(),amount,note:$('#note').value.trim(),who,createdAt:rec?.createdAt||now()};
+      if(!st.cat){const cs=$('#cats');cs.classList.add('shake');setTimeout(()=>cs.classList.remove('shake'),350);toast('Bitte Kategorie wählen');return}
+      const base={id:rec?.id||pre.newId||uid(),date:$('#date').value||todayISO(),amount,note:$('#note').value.trim(),who,createdAt:rec?.createdAt||now()};
       if(st.type==='in'){upsert('incomes',{...base,source:st.cat,forMonth:st.forMonth})}else{ls('fin.lastCat',st.cat);upsert('expenses',{...base,cat:st.cat})}
       onDone({...base,type:st.type,cat:st.cat})}};
   draw();
   root.onkeydown=null;}
-function openEntry(type,id,pre){const root=openSheet('');root.classList.add('entry');entryForm(root,{type,id,pre},r=>{closeSheet();if(r){const bl=r.type==='in'?'':budgetLine(r.date.slice(0,7),r.cat);toast(r.type==='in'?'Einnahme gespeichert ✓':bl?`Gespeichert · ${bl}`:`Gespeichert · noch ${eur(calc(curMonth).avail)} frei`)}})}
+function openEntry(type,id,pre){const root=openSheet('');root.classList.add('entry');entryForm(root,{type,id,pre},r=>{closeSheet();if(r&&pre&&pre.inbox)inboxDone(pre.inbox);if(r){const bl=r.type==='in'?'':budgetLine(r.date.slice(0,7),r.cat);toast(r.type==='in'?'Einnahme gespeichert ✓':bl?`Gespeichert · ${bl}`:`Gespeichert · noch ${eur(calc(curMonth).avail)} frei`)}})}
 
 function openRec(id,pre={}){
   const r=id?data.recurring.find(x=>x.id===id):null;
@@ -906,6 +937,8 @@ const ACT={
   prevM:()=>{if(curMonth<=startMonth()){toast('Davor gibt’s noch keine Daten 🐼');return}curMonth=ymOf(mi(curMonth)-1);render()},
   nextM:()=>{curMonth=ymOf(mi(curMonth)+1);render()},
   add:d=>openEntry(d.t||'out'),
+  inboxBook:d=>{const x=inbox.find(i=>i.name===d.id);if(!x)return;openEntry('out',null,{amt:x.amount?String(x.amount).replace('.',','):'',note:x.merchant,date:x.date,who:x.who,newId:inboxId(x.name),pickCat:true,inbox:x.name})},
+  inboxSkip:d=>{if(confirm('Diese Zahlung ignorieren? Sie wird nicht gebucht.')){inboxDone(d.id);toast('Zahlung ignoriert')}},
   editExp:d=>openEntry('out',d.id),
   budgets:d=>openBudgets(d.cat),
   editIn:d=>openEntry('in',d.id),
