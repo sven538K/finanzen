@@ -19,7 +19,8 @@ Der Nutzer ist kein Entwickler. Erkläre locker, per „du“, auf Deutsch. Für
 - `tools/benachrichtigungen.yml` – Referenzkopie der GitHub Action, die im PRIVATEN Repo unter `.github/workflows/` liegt und Web-Push verschickt (Secret `VAPID_PRIVATE`; Public Key steht in app.html als `VAPID_PUB`). Änderungen daran muss der Nutzer im privaten Repo einspielen.
 
 ## Datenmodell (data.json im privaten Repo)
-`settings` (people, extraMembers, cats [icon,name,budget], savingsGoal, startMonth?), `recurring` (Fixkosten/feste Einnahmen: interval monthly|quarterly|halfyearly|yearly|biennial|once|custom+every, start, end, forWhom, kind in|out), `expenses`, `incomes` (source, forMonth), `debts`, `subs` (Push-Abos je Gerät, who, lang), `carries` (Monatsübertrag-Entscheidungen).
+`settings` (people, extraMembers, cats [icon,name,budget], savingsGoal, startMonth?), `recurring` (Fixkosten/feste Einnahmen: interval monthly|quarterly|halfyearly|yearly|biennial|once|custom+every, start, end, forWhom, kind in|out), `expenses`, `incomes` (source, forMonth), `debts` (hist: [{m,b}] Restschuld-Verlauf), `subs` (Push-Abos je Gerät, who, lang), `carries` (Monatsübertrag-Entscheidungen), `wishes` (Wunschliste: name, price, month?, saved, icon, bought – reine Merkliste, rechnet nichts ab).
+Apple-Pay-Eingang: Kurzbefehl legt `inbox/<name>.json` ({amount, merchant, who, date}) ins private Repo; die App bucht mit id `ap-<name>` (Kategorie wählt der Nutzer selbst) und löscht die Datei.
 Sync: jedes Objekt hat `id` + `updatedAt`; Merge = neuester gewinnt; Löschen = `deleted:true`. Nicht auf andere Strategie umbauen ohne Rücksprache.
 
 ## Fachliche Regeln (so gewünscht)
