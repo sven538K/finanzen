@@ -17,7 +17,7 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 button{-webkit-user-select:none;user-select:none}
 html,body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif}
-body{padding:env(safe-area-inset-top) 0 calc(84px + env(safe-area-inset-bottom))}
+body{padding:env(safe-area-inset-top) 0 calc(96px + env(safe-area-inset-bottom))}
 body.quick{padding-bottom:env(safe-area-inset-bottom)}
 button,input,select,textarea{font:inherit;color:inherit}
 header{position:sticky;top:0;z-index:5;background:var(--bg);padding:8px 14px 6px}
@@ -82,11 +82,15 @@ header h1{background:linear-gradient(90deg,#6741d9,#e64980);-webkit-background-c
 .tip.bad{border-color:var(--bad);background:var(--bad2)}.tip.warn{border-color:var(--warn);background:var(--warn2)}
 .tip b{display:block;margin-bottom:3px}
 .tip p{margin:0;font-size:14px}
-nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--card);border-top:1px solid var(--ln);display:grid;grid-template-columns:repeat(5,1fr);align-items:center;justify-items:center;padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
-nav button{border:0;background:none;display:flex;flex-direction:column;align-items:center;font-size:11px;color:var(--mu);gap:2px;padding:4px 2px;width:100%}
+nav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;align-items:center;justify-content:center;gap:10px;padding:0 max(14px,env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));pointer-events:none}
+nav>*{pointer-events:auto}
+.navbar{position:relative;flex:1;max-width:440px;height:64px;display:grid;grid-template-columns:repeat(4,1fr);align-items:stretch;padding:5px;border-radius:32px;background:color-mix(in srgb,var(--card) 78%,transparent);-webkit-backdrop-filter:blur(18px) saturate(1.6);backdrop-filter:blur(18px) saturate(1.6);border:1px solid color-mix(in srgb,var(--ln) 80%,transparent);box-shadow:0 8px 28px rgba(30,20,60,.16)}
+.navpill{position:absolute;top:5px;bottom:5px;left:0;width:0;border-radius:27px;background:color-mix(in srgb,var(--ac) 15%,transparent);opacity:0;pointer-events:none}
+.navpill.ready{transition:transform .42s cubic-bezier(.34,1.32,.5,1),width .42s cubic-bezier(.34,1.32,.5,1),opacity .2s}
+.navbar button{position:relative;z-index:1;border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:var(--mu);gap:2px;padding:0 2px;width:100%;border-radius:27px;cursor:pointer;transition:color .25s}
 nav button span{font-size:21px;line-height:1}nav button span svg{display:block;width:24px;height:24px;margin:0 auto 1px}
-nav button.on{color:var(--ac);font-weight:600}
-nav .plus{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#845ef7,#e64980);margin-top:-34px;border:6px solid var(--bg);box-shadow:0 8px 20px rgba(132,94,247,.4);display:flex;justify-content:center;align-items:center;padding:0;transition:transform .12s}
+.navbar button.on{color:var(--ac);font-weight:600}.navbar button:active span{transform:scale(.88)}.navbar button span{transition:transform .15s}
+nav .plus{flex:none;width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#845ef7,#e64980);border:0;box-shadow:0 8px 22px rgba(132,94,247,.45);display:flex;justify-content:center;align-items:center;padding:0;transition:transform .12s;cursor:pointer}
 nav .plus svg{display:block}
 nav .plus:active{transform:scale(.9)}
 .sheet{position:fixed;inset:0;z-index:20;display:flex;align-items:flex-end;justify-content:center}
@@ -134,7 +138,7 @@ textarea{min-height:160px;font-family:ui-monospace,Menlo,monospace!important;fon
 .qwrap{padding:14px 16px;max-width:520px;margin:0 auto}
 .done{text-align:center;padding:40px 10px}
 .done .chk{font-size:60px}
-#toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:14px;font-size:14px;z-index:30;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;text-align:center}
+#toast{position:fixed;left:50%;bottom:calc(88px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:14px;font-size:14px;z-index:30;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;text-align:center}
 #toast.show{opacity:1}
 .empty{color:var(--mu);text-align:center;padding:18px 0;font-size:14px}
 .day{font-size:13px;color:var(--mu);font-weight:600;margin:14px 2px 4px}
@@ -142,6 +146,8 @@ textarea{min-height:160px;font-family:ui-monospace,Menlo,monospace!important;fon
 .code{font-family:ui-monospace,Menlo,monospace;font-size:12px;word-break:break-all;background:var(--bg);padding:8px;border-radius:10px;margin:6px 0}
 .sw{position:relative;width:52px;height:32px;flex:none}.sw input{opacity:0;width:0;height:0}.sw span{position:absolute;inset:0;background:var(--ln);border-radius:20px;transition:.2s}.sw span:before{content:'';position:absolute;left:3px;top:3px;width:26px;height:26px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}.sw input:checked+span{background:#22a06b}.sw input:checked+span:before{transform:translateX(20px)}
 .shake{animation:sh .3s}
+main.vin{animation:vin .32s ease-out}@keyframes vin{from{opacity:0;transform:translateY(8px)}}
+@media (prefers-reduced-motion:reduce){main.vin{animation:none}.navpill.ready{transition:none}}
 .seg.plan{margin:0 0 12px}
 .chips.wic{margin-top:14px;display:grid;grid-template-columns:repeat(6,1fr);gap:6px}.chips.wic .chip{padding:6px 0;font-size:20px;text-align:center;line-height:1.3}
 .hchart{display:flex;gap:6px;align-items:stretch;height:150px;margin:8px 0 2px}
@@ -224,11 +230,13 @@ textarea{min-height:160px;font-family:ui-monospace,Menlo,monospace!important;fon
 </header>
 <main id="view"></main>
 <nav id="nav">
+  <div class="navbar" id="navbar"><span class="navpill" id="navpill" aria-hidden="true"></span>
   <button data-act="nav" data-v="home"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 10.5 12 4l8.5 6.5"/><path d="M5.5 9v10a1 1 0 0 0 1 1h3.5v-5.5h4V20h3.5a1 1 0 0 0 1-1V9"/></svg></span>Übersicht</button>
   <button data-act="nav" data-v="list"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><circle cx="4.5" cy="6.5" r=".6" fill="currentColor"/><circle cx="4.5" cy="12" r=".6" fill="currentColor"/><circle cx="4.5" cy="17.5" r=".6" fill="currentColor"/></svg></span>Buchungen</button>
-  <button class="plus" data-act="add" data-t="out" aria-label="Eintragen"><svg width="26" height="26" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg></button>
   <button data-act="nav" data-v="fix"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 10h17"/><path d="M8 14.5h3"/></svg></span>Planen</button>
   <button data-act="nav" data-v="hist"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 17 9 11.5l4 4L20.5 8"/><path d="M15 8h5.5v5.5"/></svg></span>Verlauf</button>
+  </div>
+  <button class="plus" data-act="add" data-t="out" aria-label="Eintragen"><svg width="26" height="26" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg></button>
 </nav>
 <div id="sheet" class="sheet hidden"><div class="sheet-bg" data-act="close"></div><div class="sheet-card" id="sheetCard"></div></div>
 <div id="toast"></div>
@@ -722,6 +730,12 @@ async function copy(t){try{await navigator.clipboard.writeText(t)}catch(e){const
 function row({ic,t,s,a,cls='',act='',id='',extra=''}){return `<div class="row ${act?'tap':''} ${cls}" ${act?`data-act="${act}" data-id="${esc(id)}"`:''} ${extra}><div class="ic">${ic}</div><div class="mid"><div class="t">${t}</div>${s?`<div class="s">${s}</div>`:''}</div><div class="a">${a}</div></div>`}
 
 /* ---------- Ansichten ---------- */
+// Leiste unten: farbige Kapsel gleitet hinter den aktiven Tab
+let lastView=null;
+function movePill(){const p=$('#navpill'),b=document.querySelector('#navbar button.on');if(!p)return;
+  if(!b){p.style.opacity='0';return}p.style.width=b.offsetWidth+'px';p.style.transform=`translateX(${b.offsetLeft}px)`;p.style.opacity='1';
+  if(!p.classList.contains('ready'))requestAnimationFrame(()=>p.classList.add('ready'))}
+addEventListener('resize',()=>movePill());
 // Breite Bildschirme (z. B. iPhone Duo aufgeklappt): Startseite in 2 bzw. 3 Spalten. Werte passen zu den @media-Regeln im CSS.
 const MQ2=matchMedia('(min-width:600px) and (min-height:500px)'),MQ3=matchMedia('(min-width:860px) and (min-height:500px)');
 const homeCols=()=>MQ3.matches?3:MQ2.matches?2:1;
@@ -730,6 +744,8 @@ function render(){
   if(QUICK)return;_cc={};if(curMonth<startMonth())curMonth=startMonth();
   $('#mlabel').textContent=monthName(curMonth);const pb=document.querySelector('[data-act="prevM"]');if(pb)pb.style.visibility=curMonth<=startMonth()?'hidden':'';
   document.querySelectorAll('nav [data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
+  if(view!==lastView){const v=$('#view');v.classList.remove('vin');void v.offsetWidth;if(lastView!==null)v.classList.add('vin');lastView=view}
+  requestAnimationFrame(movePill);
   const lay=view==='home'?homeCols():1;$('#view').classList.toggle('wide',lay>1);
   $('#view').innerHTML=lay>1?`<div class="cols c${lay}"><div class="col">${vHome(lay===3)}</div><div class="col">${vList()}</div>${lay===3?`<div class="col">${vUpcoming()}</div>`:''}</div>`:({home:vHome,list:vList,fix:vPlan,tips:vTips,hist:vHist,settings:vSettings}[view]||vHome)();
   setSync(syncState,syncMsg);updBell();
