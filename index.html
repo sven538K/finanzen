@@ -273,7 +273,7 @@ const IN_SRC_FIXED=[['💶','Gehalt'],['🧾','Spesen'],['🎁','Bonus / Extra']
 /* ---------- Daten ---------- */
 function arr(a){return Array.isArray(a)?a:[]}
 function normalize(d){d=d&&typeof d==='object'?d:{};const s=d.settings||{};
-  return{version:1,settings:{income:+s.income||0,savingsGoal:+s.savingsGoal||0,people:Array.isArray(s.people)?s.people:[],extraMembers:Array.isArray(s.extraMembers)?s.extraMembers:[],cats:Array.isArray(s.cats)&&s.cats.length?s.cats:DEFAULT_CATS,updatedAt:s.updatedAt||''},
+  return{version:1,settings:{income:+s.income||0,savingsGoal:+s.savingsGoal||0,people:Array.isArray(s.people)?s.people:[],extraMembers:Array.isArray(s.extraMembers)?s.extraMembers:[],cats:Array.isArray(s.cats)&&s.cats.length?s.cats:DEFAULT_CATS,startMonth:/^\d{4}-\d\d$/.test(s.startMonth||'')?s.startMonth:'',updatedAt:s.updatedAt||''},
   recurring:arr(d.recurring),expenses:arr(d.expenses),incomes:arr(d.incomes),debts:arr(d.debts),subs:arr(d.subs),carries:arr(d.carries),wishes:arr(d.wishes)}}
 function mergeList(a,b){const m=new Map();for(const x of [...arr(a),...arr(b)]){if(!x||!x.id)continue;const y=m.get(x.id);if(!y||(x.updatedAt||'')>(y.updatedAt||''))m.set(x.id,x)}return[...m.values()].sort((x,y)=>x.id<y.id?-1:1)}
 function merge(l,r){return{version:1,settings:(l.settings.updatedAt||'')>=(r.settings.updatedAt||'')?l.settings:r.settings,
@@ -522,6 +522,7 @@ async function setPush(on){
 function updBell(){const b=$('#bell');if(b)b.classList.toggle('off',!pushOn())}
 /* ---------- Englisch ---------- */
 const I18N_EXACT={
+'Tracking ab Monat':'Tracking from month','automatisch (erster Monat mit Daten)':'automatic (first month with data)','Alles davor wird ignoriert: kein Übertrag, nicht im Verlauf. Praktisch, wenn ihr mitten im Monat angefangen habt.':'Everything before is ignored: no carry-over, not in the history. Handy if you started mid-month.',
 'Planen':'Plan','↻ Fixkosten':'↻ Fixed costs','🎁 Wunschliste':'🎁 Wish list','Geplante größere Ausgaben':'Planned bigger purchases','1 Sache geplant':'1 thing planned',
 'Nur eine Merkliste – wird nicht vom verfügbaren Geld abgezogen.':'Just a list – not deducted from your available money.','+ Wunsch hinzufügen':'+ Add wish',
 'Hier kommen größere Sachen rein, die ihr kaufen oder für die ihr sparen wollt – z. B. Fernseher, Urlaub, Fahrrad.':'Put bigger things here you want to buy or save for – e.g. a TV, a holiday, a bike.',
@@ -722,7 +723,7 @@ const MQ2=matchMedia('(min-width:600px) and (min-height:500px)'),MQ3=matchMedia(
 const homeCols=()=>MQ3.matches?3:MQ2.matches?2:1;
 [MQ2,MQ3].forEach(q=>q.addEventListener('change',()=>render()));
 function render(){
-  if(QUICK)return;_cc={};
+  if(QUICK)return;_cc={};if(curMonth<startMonth())curMonth=startMonth();
   $('#mlabel').textContent=monthName(curMonth);const pb=document.querySelector('[data-act="prevM"]');if(pb)pb.style.visibility=curMonth<=startMonth()?'hidden':'';
   document.querySelectorAll('nav [data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
   const lay=view==='home'?homeCols():1;$('#view').classList.toggle('wide',lay>1);
@@ -872,7 +873,7 @@ function vTips(){
   return h+`<section class="card" style="background:linear-gradient(135deg,#efe9ff,#ffe3ef)"><h2 style="color:#2b2140">🤖 Mit Claude besprechen</h2><p class="sub" style="color:#5c5470;margin:0 0 10px">Kopiert eine Zusammenfassung dieses Monats. In Claude einfügen und fragen: „Wie stehen wir da, was muss besser laufen?“</p><button class="btn" data-act="claude">📋 Stand für Claude kopieren</button></section>`}
 
 /* ---------- Verlauf: Monate vergleichen, Richtung, größte Baustellen (ohne Fixkosten) ---------- */
-function histMonths(){const end=mi(todayYM()),start=Math.max(mi(startMonth()),end-5),a=[];for(let i=start;i<=end;i++)a.push(ymOf(i));return a}
+function histMonths(){const end=Math.max(mi(todayYM()),mi(startMonth())),start=Math.max(mi(startMonth()),end-5),a=[];for(let i=start;i<=end;i++)a.push(ymOf(i));return a}
 const MN=m=>MONTHS[+m.slice(5)-1];
 function debtTotals(){const D=live(data.debts).filter(d=>d.balance!=null&&d.balance!=='');const P=D.filter(d=>+d.balance>0).map(d=>({d,p:payoff(d.balance,d.rate,d.payment)}));
   const W=P.filter(x=>x.p);
@@ -887,7 +888,7 @@ function debtSummary(t){if(!t.any)return '';if(t.now<=0)return '<div class="dsum
   ${paid>=1&&t.since?`<div class="sub pos">Seit ${monthName(t.since)} schon ${eur(paid)} weniger 👍</div>`:''}</div>`}
 function vHist(){
   const M=histMonths(),cur=todayYM();
-  const R=M.map(m=>{const c=calc(m);return{m,c,spent:c.spent,res:c.hasSal?Math.round((c.avail-c.carry)*100)/100:null,run:m===cur}});
+  const R=M.map(m=>{const c=calc(m);return{m,c,spent:c.spent,res:c.hasSal?Math.round((c.avail-c.carry)*100)/100:null,run:m>=cur}});
   const done=R.filter(r=>!r.run&&(r.c.exp.length||r.c.hasSal)),last=done[done.length-1],prev=done[done.length-2],now0=R[R.length-1];
   const day=new Date().getDate(),dim=new Date(+cur.slice(0,4),+cur.slice(5,7),0).getDate(),proj=day>=5&&now0.spent>0?now0.spent/day*dim:null;
   // 1) Richtung
@@ -939,7 +940,10 @@ function vSettings(){
   <section class="card"><h2>🔔 Benachrichtigungen</h2><div class="row" style="border:0;padding:0"><div class="mid"><div class="t">Bei neuen Buchungen der anderen Person</div><div class="s">${pushPossible()?'Gilt nur für dieses Handy. Auch über die 🔔 oben ein- und ausschaltbar.':'Nur in der App vom Home-Bildschirm möglich (iOS 16.4+).'}</div></div><label class="sw"><input type="checkbox" id="sPush" ${pushOn()?'checked':''}><span></span></label></div></section>
   <section class="card"><h2>Planung</h2>
   <label class="f">Sparen / Extra-Tilgung pro Monat<input id="sGoal" inputmode="decimal" value="${s.savingsGoal?String(s.savingsGoal).replace('.',','):''}" placeholder="0"></label>
-  <div class="hint">Wird jeden Monat vom frei verfügbaren Geld abgezogen.</div></section>
+  <div class="hint">Wird jeden Monat vom frei verfügbaren Geld abgezogen.</div>
+  <label class="f" style="margin-top:12px">Tracking ab Monat<select id="sStart">${(()=>{const ms=[todayYM(),...live(data.expenses).map(e=>e.date.slice(0,7)),...live(data.incomes).map(incMonth)].sort();const a=Math.min(mi(ms[0]),mi(todayYM())-12),b=mi(todayYM())+1,o=[];for(let i=b;i>=a;i--)o.push(ymOf(i));
+    return `<option value="" ${!s.startMonth?'selected':''}>automatisch (erster Monat mit Daten)</option>`+o.map(m=>`<option value="${m}" ${m===s.startMonth?'selected':''}>${monthName(m)}</option>`).join('')})()}</select></label>
+  <div class="hint">Alles davor wird ignoriert: kein Übertrag, nicht im Verlauf. Praktisch, wenn ihr mitten im Monat angefangen habt.</div></section>
   <section class="card"><h2>Kategorien & Budgets</h2><div class="hint" style="margin:0 0 8px">Eine pro Zeile: <b>Emoji Name | Budget</b> (Budget optional)</div>
   <textarea id="sCats" class="inp">${esc(s.cats.map(c=>`${c[0]} ${c[1]}${c[2]?' | '+c[2]:''}`).join('\n'))}</textarea><div style="margin-top:8px"><button class="btn small" id="saveCats">Kategorien speichern</button></div></section>
   <section class="card"><h2>Gemeinsam nutzen (GitHub)</h2>
@@ -960,6 +964,7 @@ function mountSettings(){
   $('#sExtra').onchange=e=>{setSettings({extraMembers:[...new Set(e.target.value.split(',').map(x=>x.trim()).filter(Boolean))]});toast('Gespeichert')};
   $('#sPeople').onchange=e=>{const p=[...new Set(e.target.value.split(',').map(x=>x.trim()).filter(Boolean))];setSettings({people:p});if(!cfg.me&&p.length){cfg.me=p[0];saveCfg()}toast('Gespeichert')};
   $('#sGoal').onchange=e=>{setSettings({savingsGoal:num(e.target.value)});toast('Gespeichert')};
+  $('#sStart').onchange=e=>{const v=e.target.value;if(v&&curMonth<v)curMonth=v;setSettings({startMonth:v});toast('Gespeichert')};
   $('#saveCats').onclick=()=>{const c=$('#sCats').value.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{const[left,lim]=l.split('|');const m=left.trim().match(/^([^\p{L}\p{N}\s]+)\s*(.+)$/u);return[m?m[1]:'•',(m?m[2]:left).trim(),lim?String(num(lim)||''):'']});if(!c.length)return;setSettings({cats:c});toast('Kategorien gespeichert')};
   ['cOwner','cRepo','cTok'].forEach(id=>$('#'+id).addEventListener('input',e=>{e.target.classList.remove('missing');const n=e.target.parentElement.nextElementSibling;if(n&&n.classList.contains('misstxt'))n.remove()}));
   $('#cSave').onclick=()=>{const F=[['cOwner','Benutzername fehlt'],['cRepo','Repo-Name fehlt'],['cTok','Token fehlt']];let bad=0;
