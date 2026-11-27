@@ -522,6 +522,7 @@ async function setPush(on){
 function updBell(){const b=$('#bell');if(b)b.classList.toggle('off',!pushOn())}
 /* ---------- Englisch ---------- */
 const I18N_EXACT={
+'Deine Wunschliste':'Your wish list','Nur eine Merkliste – wird nicht vom verfügbaren Geld abgezogen. Jede Person hat ihre eigene Liste.':'Just a list – not deducted from your available money. Everyone has their own list.',
 'Tracking ab Monat':'Tracking from month','automatisch (erster Monat mit Daten)':'automatic (first month with data)','Alles davor wird ignoriert: kein Übertrag, nicht im Verlauf. Praktisch, wenn ihr mitten im Monat angefangen habt.':'Everything before is ignored: no carry-over, not in the history. Handy if you started mid-month.',
 'Planen':'Plan','↻ Fixkosten':'↻ Fixed costs','🎁 Wunschliste':'🎁 Wish list','Geplante größere Ausgaben':'Planned bigger purchases','1 Sache geplant':'1 thing planned',
 'Nur eine Merkliste – wird nicht vom verfügbaren Geld abgezogen.':'Just a list – not deducted from your available money.','+ Wunsch hinzufügen':'+ Add wish',
@@ -830,14 +831,14 @@ function vFix(){
 /* ---------- Planen: Fixkosten | Wunschliste (größere Käufe & Sparziele, reine Merkliste – rechnet nichts ab) ---------- */
 let planTab=ls('fin.planTab')||'fix';
 function vPlan(){return `<div class="seg plan"><button data-act="planTab" data-t="fix" class="${planTab!=='wish'?'on':''}">↻ Fixkosten</button><button data-act="planTab" data-t="wish" class="${planTab==='wish'?'on':''}">🎁 Wunschliste</button></div>`+(planTab==='wish'?vWish():vFix())}
-const wishList=()=>live(data.wishes);
+const wishList=()=>live(data.wishes).filter(w=>!cfg.me||!w.who||w.who===cfg.me);
 function vWish(){const W=wishList(),open=W.filter(w=>!w.bought).sort((a,b)=>(a.month||'9999').localeCompare(b.month||'9999')||(a.createdAt||'').localeCompare(b.createdAt||'')),done=W.filter(w=>w.bought).sort((a,b)=>(b.boughtAt||'').localeCompare(a.boughtAt||''));
   const tot=sum(open,w=>w.price),saved=sum(open,w=>Math.min(+w.saved||0,+w.price||0));
-  let h=`<section class="card"><h2>Geplante größere Ausgaben</h2><div style="font-size:30px;font-weight:700;font-variant-numeric:tabular-nums">${eur(tot)}</div><div class="sub">${open.length===1?'1 Sache geplant':`${open.length} Sachen geplant`}${saved>0?` · ${eur(saved)} schon gespart`:''}</div>
-  <p class="mini" style="margin:8px 0 0">Nur eine Merkliste – wird nicht vom verfügbaren Geld abgezogen.</p><div style="margin-top:12px"><button class="btn" data-act="addWish">+ Wunsch hinzufügen</button></div></section>`;
+  let h=`<section class="card"><h2>${cfg.me&&people().length>1?'Deine Wunschliste':'Geplante größere Ausgaben'}</h2><div style="font-size:30px;font-weight:700;font-variant-numeric:tabular-nums">${eur(tot)}</div><div class="sub">${open.length===1?'1 Sache geplant':`${open.length} Sachen geplant`}${saved>0?` · ${eur(saved)} schon gespart`:''}</div>
+  <p class="mini" style="margin:8px 0 0">Nur eine Merkliste – wird nicht vom verfügbaren Geld abgezogen.${cfg.me&&people().length>1?' Jede Person hat ihre eigene Liste.':''}</p><div style="margin-top:12px"><button class="btn" data-act="addWish">+ Wunsch hinzufügen</button></div></section>`;
   if(!open.length)h+=`<div class="empty">Hier kommen größere Sachen rein, die ihr kaufen oder für die ihr sparen wollt – z. B. Fernseher, Urlaub, Fahrrad.</div>`;
   else h+=`<section class="card">${open.map(w=>{const ml=w.month?mi(w.month)-mi(todayYM())+1:0,rest=Math.max(0,(+w.price||0)-(+w.saved||0)),p=w.price?Math.min(100,(+w.saved||0)/w.price*100):0;
-    const s=[w.month?(ml<1?`war geplant für ${monthName(w.month)}`:`bis ${monthName(w.month)}`):'',w.month&&ml>=1&&rest>0?`zum Sparen ca. ${eur(rest/ml)}/Monat`:'',w.who?esc(w.who):''].filter(Boolean).join(' · ');
+    const s=[w.month?(ml<1?`war geplant für ${monthName(w.month)}`:`bis ${monthName(w.month)}`):'',w.month&&ml>=1&&rest>0?`zum Sparen ca. ${eur(rest/ml)}/Monat`:''].filter(Boolean).join(' · ');
     return `<div class="row tap" data-act="editWish" data-id="${esc(w.id)}" style="flex-wrap:wrap"><div class="ic">${esc(w.icon||'🎁')}</div><div class="mid"><div class="t">${esc(w.name)}</div>${s?`<div class="s">${s}</div>`:''}</div><div class="a">${eur(w.price)}${+w.saved>0?`<small>${eur(+w.saved)} gespart</small>`:''}</div>${+w.saved>0?`<div class="bar" style="flex:0 0 calc(100% - 46px);margin:2px 0 0 46px;height:6px"><i style="width:${p}%"></i></div>`:''}</div>`}).join('')}</section>`;
   if(done.length)h+=`<section class="card"><h2>Gekauft ✓</h2>${done.slice(0,10).map(w=>row({ic:esc(w.icon||'🎁'),t:esc(w.name),s:w.boughtAt?fmtDate(w.boughtAt.slice(0,10)):'',a:eur(w.price),act:'editWish',id:w.id,cls:'off'})).join('')}</section>`;
   return h}
